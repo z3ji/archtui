@@ -7,7 +7,7 @@ display_menu() {
            --menu "Choose an option:" 15 60 4 \
            1 "Partition Disk" \
            2 "Install Base System" \
-           3 "Configure System" \
+           3 "Configure System" \sudo
            4 "Exit" \
            2> menu_choice
 }
@@ -15,19 +15,19 @@ display_menu() {
 # Function to handle disk partitioning
 partition_disk() {
     # You can implement disk partitioning logic here
-    echo "Partitioning Disk"
+    dialog --msgbox "Partitioning Disk" 10 40
 }
 
 # Function to install the base system
 install_base_system() {
     # You can implement base system installation logic here
-    echo "Installing Base System"
+    dialog --msgbox "Installing Base System" 10 40
 }
 
 # Function to configure the system
 configure_system() {
     # You can implement system configuration logic here
-    echo "Configuring System"
+    dialog --msgbox "Configuring System" 10 40
 }
 
 # Main function to execute the installer
@@ -39,7 +39,7 @@ main() {
             1) partition_disk ;;
             2) install_base_system ;;
             3) configure_system ;;
-            4) echo "Exiting..."; exit ;;
+            4) dialog --msgbox "Exiting..." 10 40; exit ;;
         esac
     done
 }
