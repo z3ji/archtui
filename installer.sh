@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Install dialog if not already installed
+if ! command -v dialog &> /dev/null; then
+    echo "Installing dialog..."
+    sudo pacman -S --noconfirm dialog
+fi
+
 # Function to display the main menu
 display_menu() {
     dialog --backtitle "ArchTUI" \
@@ -7,7 +13,7 @@ display_menu() {
            --menu "Choose an option:" 15 60 4 \
            1 "Partition Disk" \
            2 "Install Base System" \
-           3 "Configure System" \sudo
+           3 "Configure System" \
            4 "Exit" \
            2> menu_choice
 }
