@@ -1,10 +1,20 @@
 #!/bin/bash
 
-# Install dialog if not already installed
-if ! command -v dialog &> /dev/null; then
-    echo "Installing dialog..."
-    sudo pacman -S --noconfirm dialog
-fi
+# Function to check if the user has root privileges
+check_root_privileges() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "This script requires root privileges to install packages. Please run it as root or using sudo."
+        exit 1
+    fi
+}
+
+# Function to install dialog if not already installed
+install_dialog() {
+    if ! command -v dialog &> /dev/null; then
+        echo "Installing dialog..."
+        pacman -S --noconfirm dialog
+    fi
+}
 
 # Function to display the main menu
 display_menu() {
@@ -38,6 +48,9 @@ configure_system() {
 
 # Main function to execute the installer
 main() {
+    check_root_privileges
+    install_dialog
+
     while true; do
         display_menu
         choice=$(<menu_choice)
