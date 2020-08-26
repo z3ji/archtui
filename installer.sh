@@ -21,10 +21,10 @@ display_menu() {
     dialog --backtitle "ArchTUI" \
            --title "Main Menu" \
            --menu "Choose an option:" 15 60 4 \
-           1 "Partition Disk" \
-           2 "Install Base System" \
-           3 "Configure System" \
-           4 "Exit" \
+           1 "Partition Disk" "Partition the disk to prepare for installation" \
+           2 "Install Base System" "Install the base Arch Linux system" \
+           3 "Configure System" "Configure system settings and user accounts" \
+           4 "Exit" "Exit the installer" \
            2> menu_choice
 }
 
