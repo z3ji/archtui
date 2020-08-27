@@ -16,49 +16,55 @@ install_dialog() {
     fi
 }
 
-# Function to display the main menu
-display_menu() {
-    dialog --backtitle "ArchTUI" \
-           --title "Main Menu" \
-           --menu "Choose an option:" 15 60 4 \
-           1 "Partition Disk" "Partition the disk to prepare for installation" \
-           2 "Install Base System" "Install the base Arch Linux system" \
-           3 "Configure System" "Configure system settings and user accounts" \
-           4 "Exit" "Exit the installer" \
-           2> menu_choice
-}
-
-# Function to handle disk partitioning
-partition_disk() {
-    # You can implement disk partitioning logic here
-    dialog --msgbox "Partitioning Disk" 10 40
-}
-
-# Function to install the base system
-install_base_system() {
-    # You can implement base system installation logic here
-    dialog --msgbox "Installing Base System" 10 40
-}
-
-# Function to configure the system
-configure_system() {
-    # You can implement system configuration logic here
-    dialog --msgbox "Configuring System" 10 40
-}
-
-# Main function to execute the installer
+# Main function to display the menu and handle user choices
 main() {
     check_root_privileges
     install_dialog
 
+    # Define menu options as an associative array with descriptions
+    declare -A menu_options=(
+        [1]="Partition Disk: Partition the disk to prepare for installation"
+        [2]="Install Base System: Install the base Arch Linux system"
+        [3]="Configure System: Configure system settings and user accounts"
+        [4]="Exit: Exit the installer"
+    )
+
+    # Create an array to hold dialog menu options
+    dialog_options=()
+    # Sort the keys in ascending order
+    sorted_keys=($(echo "${!menu_options[@]}" | tr ' ' '\n' | sort -n))
+    for key in "${sorted_keys[@]}"; do
+        dialog_options+=("$key" "${menu_options[$key]}")
+    done
+
     while true; do
-        display_menu
-        choice=$(<menu_choice)
+        # Display the menu
+        choice=$(dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 4 "${dialog_options[@]}" 2>&1 >/dev/tty)
+
+        # Handle user choice
         case $choice in
-            1) partition_disk ;;
-            2) install_base_system ;;
-            3) configure_system ;;
-            4) dialog --msgbox "Exiting..." 10 40; exit ;;
+            1)
+                # Partition Disk
+                dialog --msgbox "Partitioning Disk" 10 40
+                ;;
+            2)
+                # Install Base System
+                dialog --msgbox "Installing Base System" 10 40
+                ;;
+            3)
+                # Configure System
+                dialog --msgbox "Configuring System" 10 40
+                ;;
+            4)
+                # Exit
+                dialog --msgbox "Exiting..." 10 40
+                exit
+                ;;
+            *)
+                # If the user cancels or presses Escape, exit the installer
+                dialog --msgbox "Exiting..." 10 40
+                exit
+                ;;
         esac
     done
 }
