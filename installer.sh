@@ -16,6 +16,35 @@ install_dialog() {
     fi
 }
 
+# Function to partition the disk
+partition_disk() {
+    # Create partitions
+    parted -s /dev/sda mklabel gpt
+    parted -s /dev/sda mkpart primary fat32 1MiB 512MiB
+    parted -s /dev/sda set 1 boot on
+    parted -s /dev/sda mkpart primary btrfs 512MiB 100%
+
+    # Format partitions
+    mkfs.ext4 /dev/sda1
+    mkfs.btrfs /dev/sda2
+
+    # Mount the Btrfs partition
+    mount /dev/sda2 /mnt
+
+    # Create Btrfs subvolumes
+    btrfs subvolume create /mnt/@root
+    btrfs subvolume create /mnt/@home
+    btrfs subvolume create /mnt/@var
+
+    # Mount subvolumes
+    umount /mnt
+    mount -o subvol=@root /dev/sda2 /mnt
+    mkdir -p /mnt/{boot,home,var}
+    mount /dev/sda1 /mnt/boot
+    mount -o subvol=@home /dev/sda2 /mnt/home
+    mount -o subvol=@var /dev/sda2 /mnt/var
+}
+
 # Main function to display the menu and handle user choices
 main() {
     check_root_privileges
@@ -45,7 +74,7 @@ main() {
         case $choice in
             1)
                 # Partition Disk
-                dialog --msgbox "Partitioning Disk" 10 40
+                partition_disk
                 ;;
             2)
                 # Install Base System
