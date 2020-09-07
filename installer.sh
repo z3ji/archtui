@@ -45,6 +45,28 @@ partition_disk() {
     mount -o subvol=@var /dev/sda2 /mnt/var
 }
 
+# Function to install the base Arch Linux system
+install_base_system() {
+    # Generate an fstab file
+    genfstab -U /mnt >> /mnt/etc/fstab
+
+    # Change root to the new system
+    arch-chroot /mnt /bin/bash <<EOF
+    # Install base system packages
+    pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr
+
+    # Install network tools (optional)
+    pacman -S --noconfirm networkmanager
+
+    # Configure and install GRUB
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+    grub-mkconfig -o /boot/grub/grub.cfg
+
+    # Enable essential services (optional)
+    systemctl enable NetworkManager
+EOF
+}
+
 # Main function to display the menu and handle user choices
 main() {
     check_root_privileges
@@ -78,7 +100,7 @@ main() {
                 ;;
             2)
                 # Install Base System
-                dialog --msgbox "Installing Base System" 10 40
+                install_base_system
                 ;;
             3)
                 # Configure System
