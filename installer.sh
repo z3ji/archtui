@@ -67,6 +67,27 @@ install_base_system() {
 EOF
 }
 
+# Function to configure the system
+configure_system() {
+    # Set hostname
+    hostname=$(dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
+    echo "$hostname" > /etc/hostname
+
+    # Set up network (optional)
+    # Configure network settings here...
+
+    # Set root password
+    dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty | passwd --stdin root
+
+    # Add a new user
+    username=$(dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
+    useradd -m "$username"
+    dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username:" 10 60 2>&1 >/dev/tty | passwd --stdin "$username"
+
+    # Add the user to sudoers (optional)
+    usermod -aG wheel "$username"
+}
+
 # Main function to display the menu and handle user choices
 main() {
     check_root_privileges
@@ -104,7 +125,7 @@ main() {
                 ;;
             3)
                 # Configure System
-                dialog --msgbox "Configuring System" 10 40
+                configure_system
                 ;;
             4)
                 # Exit
