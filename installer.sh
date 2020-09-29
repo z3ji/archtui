@@ -88,6 +88,11 @@ configure_system() {
     usermod -aG wheel "$username"
 }
 
+# Function to add additional pacman packages
+add_additional_packages() {
+    dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty | xargs pacman -S --noconfirm
+}
+
 # Main function to display the menu and handle user choices
 main() {
     check_root_privileges
@@ -98,7 +103,8 @@ main() {
         [1]="Partition Disk: Partition the disk to prepare for installation"
         [2]="Install Base System: Install the base Arch Linux system"
         [3]="Configure System: Configure system settings and user accounts"
-        [4]="Exit: Exit the installer"
+        [4]="Add Additional Pacman Packages: Add additional packages using pacman"
+        [5]="Exit: Exit the installer"
     )
 
     # Create an array to hold dialog menu options
@@ -111,7 +117,7 @@ main() {
 
     while true; do
         # Display the menu
-        choice=$(dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 4 "${dialog_options[@]}" 2>&1 >/dev/tty)
+        choice=$(dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty)
 
         # Handle user choice
         case $choice in
@@ -128,6 +134,10 @@ main() {
                 configure_system
                 ;;
             4)
+                # Add Additional Pacman Packages
+                add_additional_packages
+                ;;
+            5)
                 # Exit
                 dialog --msgbox "Exiting..." 10 40
                 exit
