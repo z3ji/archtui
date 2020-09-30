@@ -3,7 +3,7 @@
 # Function to check if the user has root privileges
 check_root_privileges() {
     if [[ $EUID -ne 0 ]]; then
-        echo "This script requires root privileges to install packages. Please run it as root or using sudo."
+        dialog --backtitle "Error" --msgbox "This script requires root privileges to install packages. Please run it as root or using sudo." 10 60
         exit 1
     fi
 }
@@ -13,6 +13,10 @@ install_dialog() {
     if ! command -v dialog &> /dev/null; then
         echo "Installing dialog..."
         pacman -S --noconfirm dialog
+        if [ $? -ne 0 ]; then
+            dialog --backtitle "Error" --msgbox "Failed to install dialog. Please install it manually and rerun the script." 10 60
+            exit 1
+        fi
     fi
 }
 
@@ -91,6 +95,11 @@ configure_system() {
 # Function to add additional pacman packages
 add_additional_packages() {
     dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty | xargs pacman -S --noconfirm
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
+    else
+        dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
+    fi
 }
 
 # Main function to display the menu and handle user choices
