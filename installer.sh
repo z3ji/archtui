@@ -23,31 +23,32 @@ install_dialog() {
 # Function to partition the disk
 partition_disk() {
     # Create partitions
-    parted -s /dev/sda mklabel gpt
-    parted -s /dev/sda mkpart primary fat32 1MiB 512MiB
-    parted -s /dev/sda set 1 boot on
-    parted -s /dev/sda mkpart primary btrfs 512MiB 100%
+    parted -s /dev/sda mklabel gpt || { dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary fat32 1MiB 512MiB || { dialog --backtitle "Error" --msgbox "Failed to create EFI partition." 10 60; return 1; }
+    parted -s /dev/sda set 1 boot on || { dialog --backtitle "Error" --msgbox "Failed to set boot flag on EFI partition." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary btrfs 512MiB 100% || { dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
 
     # Format partitions
-    mkfs.ext4 /dev/sda1
-    mkfs.btrfs /dev/sda2
+    mkfs.ext4 /dev/sda1 || { dialog --backtitle "Error" --msgbox "Failed to format EFI partition." 10 60; return 1; }
+    mkfs.btrfs /dev/sda2 || { dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
 
     # Mount the Btrfs partition
-    mount /dev/sda2 /mnt
+    mount /dev/sda2 /mnt || { dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
 
     # Create Btrfs subvolumes
-    btrfs subvolume create /mnt/@root
-    btrfs subvolume create /mnt/@home
-    btrfs subvolume create /mnt/@var
+    btrfs subvolume create /mnt/@root || { dialog --backtitle "Error" --msgbox "Failed to create root subvolume." 10 60; return 1; }
+    btrfs subvolume create /mnt/@home || { dialog --backtitle "Error" --msgbox "Failed to create home subvolume." 10 60; return 1; }
+    btrfs subvolume create /mnt/@var || { dialog --backtitle "Error" --msgbox "Failed to create var subvolume." 10 60; return 1; }
 
     # Mount subvolumes
-    umount /mnt
-    mount -o subvol=@root /dev/sda2 /mnt
-    mkdir -p /mnt/{boot,home,var}
-    mount /dev/sda1 /mnt/boot
-    mount -o subvol=@home /dev/sda2 /mnt/home
-    mount -o subvol=@var /dev/sda2 /mnt/var
+    umount /mnt || { dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
+    mount -o subvol=@root /dev/sda2 /mnt || { dialog --backtitle "Error" --msgbox "Failed to mount root subvolume." 10 60; return 1; }
+    mkdir -p /mnt/{boot,home,var} || { dialog --backtitle "Error" --msgbox "Failed to create mount directories." 10 60; return 1; }
+    mount /dev/sda1 /mnt/boot || { dialog --backtitle "Error" --msgbox "Failed to mount EFI partition." 10 60; return 1; }
+    mount -o subvol=@home /dev/sda2 /mnt/home || { dialog --backtitle "Error" --msgbox "Failed to mount home subvolume." 10 60; return 1; }
+    mount -o subvol=@var /dev/sda2 /mnt/var || { dialog --backtitle "Error" --msgbox "Failed to mount var subvolume." 10 60; return 1; }
 }
+
 
 # Function to install the base Arch Linux system
 install_base_system() {
