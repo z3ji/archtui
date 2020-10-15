@@ -53,23 +53,29 @@ partition_disk() {
 # Function to install the base Arch Linux system
 install_base_system() {
     # Generate an fstab file
-    genfstab -U /mnt >> /mnt/etc/fstab
+    genfstab -U /mnt >> /mnt/etc/fstab || { dialog --backtitle "Error" --msgbox "Failed to generate fstab file." 10 60; return 1; }
 
     # Change root to the new system
     arch-chroot /mnt /bin/bash <<EOF
     # Install base system packages
-    pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr
+    pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr || { dialog --backtitle "Error" --msgbox "Failed to install base system packages." 10 60; exit 1; }
 
     # Install network tools (optional)
-    pacman -S --noconfirm networkmanager
+    pacman -S --noconfirm networkmanager || { dialog --backtitle "Error" --msgbox "Failed to install network tools." 10 60; exit 1; }
 
     # Configure and install GRUB
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-    grub-mkconfig -o /boot/grub/grub.cfg
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
+    grub-mkconfig -o /boot/grub/grub.cfg || { dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration." 10 60; exit 1; }
 
     # Enable essential services (optional)
-    systemctl enable NetworkManager
+    systemctl enable NetworkManager || { dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service." 10 60; exit 1; }
 EOF
+
+    # Check if chroot command succeeded
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Failed to change root to the new system." 10 60
+        return 1
+    fi
 }
 
 # Function to configure the system
