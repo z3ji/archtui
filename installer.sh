@@ -82,21 +82,21 @@ EOF
 configure_system() {
     # Set hostname
     hostname=$(dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
-    echo "$hostname" > /etc/hostname
+    echo "$hostname" > /etc/hostname || { dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
 
     # Set up network (optional)
     # Configure network settings here...
 
     # Set root password
-    dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty | passwd --stdin root
+    dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty | passwd --stdin root || { dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
 
     # Add a new user
     username=$(dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
-    useradd -m "$username"
-    dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username:" 10 60 2>&1 >/dev/tty | passwd --stdin "$username"
+    useradd -m "$username" || { dialog --backtitle "Error" --msgbox "Failed to add user $username." 10 60; return 1; }
+    dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username:" 10 60 2>&1 >/dev/tty | passwd --stdin "$username" || { dialog --backtitle "Error" --msgbox "Failed to set password for user $username." 10 60; return 1; }
 
     # Add the user to sudoers (optional)
-    usermod -aG wheel "$username"
+    usermod -aG wheel "$username" || { dialog --backtitle "Error" --msgbox "Failed to add $username to sudoers." 10 60; return 1; }
 }
 
 # Function to add additional pacman packages
