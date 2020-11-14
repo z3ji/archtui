@@ -112,7 +112,7 @@ add_additional_packages() {
 # Main function to display the menu and handle user choices
 main() {
     check_root_privileges
-    install_dialog
+    install_dialog || { echo "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
 
     # Define menu options as an associative array with descriptions
     declare -A menu_options=(
@@ -133,25 +133,25 @@ main() {
 
     while true; do
         # Display the menu
-        choice=$(dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty)
+        choice=$(dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty) || { echo "Failed to display menu. Exiting..."; exit 1; }
 
         # Handle user choice
         case $choice in
             1)
                 # Partition Disk
-                partition_disk
+                partition_disk || { dialog --backtitle "Error" --msgbox "Failed to partition the disk." 10 60; continue; }
                 ;;
             2)
                 # Install Base System
-                install_base_system
+                install_base_system || { dialog --backtitle "Error" --msgbox "Failed to install the base system." 10 60; continue; }
                 ;;
             3)
                 # Configure System
-                configure_system
+                configure_system || { dialog --backtitle "Error" --msgbox "Failed to configure the system." 10 60; continue; }
                 ;;
             4)
                 # Add Additional Pacman Packages
-                add_additional_packages
+                add_additional_packages || { dialog --backtitle "Error" --msgbox "Failed to add additional pacman packages." 10 60; continue; }
                 ;;
             5)
                 # Exit
