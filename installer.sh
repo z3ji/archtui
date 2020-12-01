@@ -81,22 +81,40 @@ EOF
 # Function to configure the system
 configure_system() {
     # Set hostname
-    hostname=$(dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
-    echo "$hostname" > /etc/hostname || { dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
+    hostname_input=$(dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
+        return 1
+    fi
+    echo "$hostname_input" > /etc/hostname || { dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
 
     # Set up network (optional)
     # Configure network settings here...
 
     # Set root password
-    dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty | passwd --stdin root || { dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
+    root_password_input=$(dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
+        return 1
+    fi
+    echo "$root_password_input" | passwd --stdin root || { dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
 
     # Add a new user
-    username=$(dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
-    useradd -m "$username" || { dialog --backtitle "Error" --msgbox "Failed to add user $username." 10 60; return 1; }
-    dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username:" 10 60 2>&1 >/dev/tty | passwd --stdin "$username" || { dialog --backtitle "Error" --msgbox "Failed to set password for user $username." 10 60; return 1; }
+    username_input=$(dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
+        return 1
+    fi
+    useradd -m "$username_input" || { dialog --backtitle "Error" --msgbox "Failed to add user $username_input." 10 60; return 1; }
+    user_password_input=$(dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
+        return 1
+    fi
+    echo "$user_password_input" | passwd --stdin "$username_input" || { dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input." 10 60; return 1; }
 
     # Add the user to sudoers (optional)
-    usermod -aG wheel "$username" || { dialog --backtitle "Error" --msgbox "Failed to add $username to sudoers." 10 60; return 1; }
+    usermod -aG wheel "$username_input" || { dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
 }
 
 # Function to add additional pacman packages
