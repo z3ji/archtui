@@ -119,11 +119,25 @@ configure_system() {
 
 # Function to add additional pacman packages
 add_additional_packages() {
-    dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty | xargs pacman -S --noconfirm
+    additional_packages=$(dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
-        dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
+        dialog --backtitle "Error" --msgbox "Package input cancelled. No additional packages installed." 10 60
+        return 1
+    fi
+
+    # Check if input is not empty
+    if [ -n "$additional_packages" ]; then
+        dialog --backtitle "ArchTUI" --title "Installing Packages" --infobox "Installing additional packages..." 5 50
+        # Install additional packages
+        echo "$additional_packages" | xargs pacman -S --noconfirm
+        if [ $? -ne 0 ]; then
+            dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
+            return 1
+        else
+            dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
+        fi
     else
-        dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
+        dialog --backtitle "ArchTUI" --msgbox "No additional packages specified. Skipping installation." 10 60
     fi
 }
 
