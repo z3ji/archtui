@@ -11,6 +11,12 @@ show_dialog() {
     echo "$dialog_output"
 }
 
+# Function to log messages
+log_message() {
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] $1" >> /var/log/arch_install.log
+}
+
 # Function to check if the user has root privileges
 check_root_privileges() {
     if [[ $EUID -ne 0 ]]; then
@@ -22,70 +28,78 @@ check_root_privileges() {
 # Function to install dialog if not already installed
 install_dialog() {
     if ! command -v dialog &> /dev/null; then
-        echo "Installing dialog..."
+        log_message "Installing dialog..."
         pacman -S --noconfirm dialog
         if [ $? -ne 0 ]; then
+            log_message "Failed to install dialog."
             show_dialog --backtitle "Error" --msgbox "Failed to install dialog. Please install it manually and rerun the script." 10 60
             exit 1
         fi
+        log_message "Dialog installed successfully."
     fi
 }
 
 # Function to partition the disk
 partition_disk() {
-    # Create partitions
-    parted -s /dev/sda mklabel gpt || { show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary fat32 1MiB 512MiB || { show_dialog --backtitle "Error" --msgbox "Failed to create EFI partition." 10 60; return 1; }
-    parted -s /dev/sda set 1 boot on || { show_dialog --backtitle "Error" --msgbox "Failed to set boot flag on EFI partition." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary btrfs 512MiB 100% || { show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
+    log_message "Partitioning disk..."
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary fat32 1MiB 512MiB || { log_message "Failed to create EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to create EFI partition." 10 60; return 1; }
+    parted -s /dev/sda set 1 boot on || { log_message "Failed to set boot flag on EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to set boot flag on EFI partition." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary btrfs 512MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
 
     # Format partitions
-    mkfs.ext4 /dev/sda1 || { show_dialog --backtitle "Error" --msgbox "Failed to format EFI partition." 10 60; return 1; }
-    mkfs.btrfs /dev/sda2 || { show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
+    mkfs.ext4 /dev/sda1 || { log_message "Failed to format EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to format EFI partition." 10 60; return 1; }
+    mkfs.btrfs /dev/sda2 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
 
     # Mount the Btrfs partition
-    mount /dev/sda2 /mnt || { show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
+    mount /dev/sda2 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
 
     # Create Btrfs subvolumes
-    btrfs subvolume create /mnt/@root || { show_dialog --backtitle "Error" --msgbox "Failed to create root subvolume." 10 60; return 1; }
-    btrfs subvolume create /mnt/@home || { show_dialog --backtitle "Error" --msgbox "Failed to create home subvolume." 10 60; return 1; }
-    btrfs subvolume create /mnt/@var || { show_dialog --backtitle "Error" --msgbox "Failed to create var subvolume." 10 60; return 1; }
+    btrfs subvolume create /mnt/@root || { log_message "Failed to create root subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create root subvolume." 10 60; return 1; }
+    btrfs subvolume create /mnt/@home || { log_message "Failed to create home subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create home subvolume." 10 60; return 1; }
+    btrfs subvolume create /mnt/@var || { log_message "Failed to create var subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create var subvolume." 10 60; return 1; }
 
     # Mount subvolumes
-    umount /mnt || { show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
-    mount -o subvol=@root /dev/sda2 /mnt || { show_dialog --backtitle "Error" --msgbox "Failed to mount root subvolume." 10 60; return 1; }
-    mkdir -p /mnt/{boot,home,var} || { show_dialog --backtitle "Error" --msgbox "Failed to create mount directories." 10 60; return 1; }
-    mount /dev/sda1 /mnt/boot || { show_dialog --backtitle "Error" --msgbox "Failed to mount EFI partition." 10 60; return 1; }
-    mount -o subvol=@home /dev/sda2 /mnt/home || { show_dialog --backtitle "Error" --msgbox "Failed to mount home subvolume." 10 60; return 1; }
-    mount -o subvol=@var /dev/sda2 /mnt/var || { show_dialog --backtitle "Error" --msgbox "Failed to mount var subvolume." 10 60; return 1; }
+    umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
+    mount -o subvol=@root /dev/sda2 /mnt || { log_message "Failed to mount root subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount root subvolume." 10 60; return 1; }
+    mkdir -p /mnt/{boot,home,var} || { log_message "Failed to create mount directories."; show_dialog --backtitle "Error" --msgbox "Failed to create mount directories." 10 60; return 1; }
+    mount /dev/sda1 /mnt/boot || { log_message "Failed to mount EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount EFI partition." 10 60; return 1; }
+    mount -o subvol=@home /dev/sda2 /mnt/home || { log_message "Failed to mount home subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount home subvolume." 10 60; return 1; }
+    mount -o subvol=@var /dev/sda2 /mnt/var || { log_message "Failed to mount var subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount var subvolume." 10 60; return 1; }
+
+    log_message "Partitioning disk completed successfully."
 }
 
 # Function to install the base Arch Linux system
 install_base_system() {
+    log_message "Installing base system..."
     # Generate an fstab file
-    genfstab -U /mnt >> /mnt/etc/fstab || { show_dialog --backtitle "Error" --msgbox "Failed to generate fstab file." 10 60; return 1; }
+    genfstab -U /mnt >> /mnt/etc/fstab || { log_message "Failed to generate fstab file."; show_dialog --backtitle "Error" --msgbox "Failed to generate fstab file." 10 60; return 1; }
 
     # Change root to the new system
     arch-chroot /mnt /bin/bash <<EOF
     # Install base system packages
-    pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr || { show_dialog --backtitle "Error" --msgbox "Failed to install base system packages." 10 60; exit 1; }
+    pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr || { log_message "Failed to install base system packages."; show_dialog --backtitle "Error" --msgbox "Failed to install base system packages." 10 60; exit 1; }
 
     # Install network tools (optional)
-    pacman -S --noconfirm networkmanager || { show_dialog --backtitle "Error" --msgbox "Failed to install network tools." 10 60; exit 1; }
+    pacman -S --noconfirm networkmanager || { log_message "Failed to install network tools."; show_dialog --backtitle "Error" --msgbox "Failed to install network tools." 10 60; exit 1; }
 
     # Configure and install GRUB
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { show_dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
-    grub-mkconfig -o /boot/grub/grub.cfg || { show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration." 10 60; exit 1; }
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
+    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration." 10 60; exit 1; }
 
     # Enable essential services (optional)
-    systemctl enable NetworkManager || { show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service." 10 60; exit 1; }
+    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service." 10 60; exit 1; }
 EOF
 
     # Check if chroot command succeeded
     if [ $? -ne 0 ]; then
+        log_message "Failed to change root to the new system."
         show_dialog --backtitle "Error" --msgbox "Failed to change root to the new system." 10 60
         return 1
     fi
+
+    log_message "Base system installation completed successfully."
 }
 
 # Function to configure the system
@@ -96,7 +110,7 @@ configure_system() {
         show_dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
         return 1
     fi
-    echo "$hostname_input" > /etc/hostname || { show_dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
+    echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; show_dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
 
     # Set up network (optional)
     # Configure network settings here...
@@ -107,7 +121,7 @@ configure_system() {
         show_dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
         return 1
     fi
-    echo "$root_password_input" | passwd --stdin root || { show_dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
+    echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; show_dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
 
     # Add a new user
     username_input=$(show_dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
@@ -115,16 +129,16 @@ configure_system() {
         show_dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
         return 1
     fi
-    useradd -m "$username_input" || { show_dialog --backtitle "Error" --msgbox "Failed to add user $username_input." 10 60; return 1; }
+    useradd -m "$username_input" || { log_message "Failed to add user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to add user $username_input." 10 60; return 1; }
     user_password_input=$(show_dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
         return 1
     fi
-    echo "$user_password_input" | passwd --stdin "$username_input" || { show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input." 10 60; return 1; }
+    echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input." 10 60; return 1; }
 
     # Add the user to sudoers (optional)
-    usermod -aG wheel "$username_input" || { show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
+    usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
 }
 
 # Function to add additional pacman packages
@@ -137,13 +151,16 @@ add_additional_packages() {
 
     # Check if input is not empty
     if [ -n "$additional_packages" ]; then
+        log_message "Installing additional packages: $additional_packages"
         show_dialog --backtitle "ArchTUI" --title "Installing Packages" --infobox "Installing additional packages..." 5 50
         # Install additional packages
         echo "$additional_packages" | xargs pacman -S --noconfirm
         if [ $? -ne 0 ]; then
+            log_message "Failed to install additional packages."
             show_dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
             return 1
         else
+            log_message "Additional packages installed successfully."
             show_dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
         fi
     else
@@ -154,7 +171,7 @@ add_additional_packages() {
 # Main function to display the menu and handle user choices
 main() {
     check_root_privileges
-    install_dialog || { echo "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
+    install_dialog || { log_message "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
 
     # Define menu options as an associative array with descriptions
     declare -A menu_options=(
@@ -175,7 +192,7 @@ main() {
 
     while true; do
         # Display the menu
-        choice=$(show_dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty) || { echo "Failed to display menu. Exiting..."; exit 1; }
+        choice=$(show_dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty) || { log_message "Failed to display menu. Exiting..."; exit 1; }
 
         # Handle user choice
         case $choice in
