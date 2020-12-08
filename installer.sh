@@ -67,7 +67,8 @@ partition_disk() {
     mount -o subvol=@home /dev/sda2 /mnt/home || { log_message "Failed to mount home subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount home subvolume." 10 60; return 1; }
     mount -o subvol=@var /dev/sda2 /mnt/var || { log_message "Failed to mount var subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount var subvolume." 10 60; return 1; }
 
-    log_message "Partitioning disk completed successfully."
+    # Log success message
+    log_message "Disk partitioning completed successfully."
 }
 
 # Function to install the base Arch Linux system
@@ -99,6 +100,7 @@ EOF
         return 1
     fi
 
+    # Log success message
     log_message "Base system installation completed successfully."
 }
 
@@ -139,6 +141,9 @@ configure_system() {
 
     # Add the user to sudoers (optional)
     usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
+
+    # Log success message
+    log_message "System configuration completed successfully."
 }
 
 # Function to add additional pacman packages
@@ -166,6 +171,9 @@ add_additional_packages() {
     else
         show_dialog --backtitle "ArchTUI" --msgbox "No additional packages specified. Skipping installation." 10 60
     fi
+
+    # Log success message
+    log_message "Additional packages installed successfully."
 }
 
 # Main function to display the menu and handle user choices
@@ -181,6 +189,9 @@ main() {
         [4]="Add Additional Pacman Packages: Add additional packages using pacman"
         [5]="Exit: Exit the installer"
     )
+
+    # Start the installer
+    log_message "Installer started."
 
     # Create an array to hold dialog menu options
     dialog_options=()
@@ -224,6 +235,8 @@ main() {
                 ;;
         esac
     done
+
+    log_message "Installer completed."
 }
 
 # Start the installer
