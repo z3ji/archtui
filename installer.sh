@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Define the log file
+LOG_FILE="/var/log/arch_install.log"
+
 # Function to display dialog boxes with error handling
 show_dialog() {
     dialog_output=$(dialog "$@")
@@ -11,10 +14,10 @@ show_dialog() {
     echo "$dialog_output"
 }
 
-# Function to log messages
+# Function to log messages with timestamp
 log_message() {
     local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-    echo "[$timestamp] $1" >> /var/log/arch_install.log
+    echo "[$timestamp] $1" >> "$LOG_FILE"
 }
 
 # Function to check if the user has root privileges
@@ -181,7 +184,10 @@ main() {
     check_root_privileges
     install_dialog || { log_message "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
 
-    # Define menu options as an associative array with descriptions
+    # Start the installer
+    log_message "Installer started."
+
+    # Create an associative array to hold dialog menu options
     declare -A menu_options=(
         [1]="Partition Disk: Partition the disk to prepare for installation"
         [2]="Install Base System: Install the base Arch Linux system"
@@ -190,10 +196,7 @@ main() {
         [5]="Exit: Exit the installer"
     )
 
-    # Start the installer
-    log_message "Installer started."
-
-    # Create an array to hold dialog menu options
+    # Create an array to hold sorted dialog menu options
     dialog_options=()
     # Sort the keys in ascending order
     sorted_keys=($(echo "${!menu_options[@]}" | tr ' ' '\n' | sort -n))
