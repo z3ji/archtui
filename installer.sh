@@ -44,31 +44,43 @@ install_dialog() {
 
 # Function to partition the disk
 partition_disk() {
-    log_message "Partitioning disk..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary fat32 1MiB 512MiB || { log_message "Failed to create EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to create EFI partition." 10 60; return 1; }
-    parted -s /dev/sda set 1 boot on || { log_message "Failed to set boot flag on EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to set boot flag on EFI partition." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary btrfs 512MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
+    # Prompt the user to choose the partition type
+    partition_type=$(show_dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
+        1 "Normal ext4 partition" \
+        2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty)
 
-    # Format partitions
-    mkfs.ext4 /dev/sda1 || { log_message "Failed to format EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to format EFI partition." 10 60; return 1; }
-    mkfs.btrfs /dev/sda2 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
+    # Check if user canceled
+    if [ $? -ne 0 ]; then
+        show_dialog --backtitle "Error" --msgbox "Partitioning canceled." 10 60
+        return 1
+    fi
 
-    # Mount the Btrfs partition
-    mount /dev/sda2 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
-
-    # Create Btrfs subvolumes
-    btrfs subvolume create /mnt/@root || { log_message "Failed to create root subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create root subvolume." 10 60; return 1; }
-    btrfs subvolume create /mnt/@home || { log_message "Failed to create home subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create home subvolume." 10 60; return 1; }
-    btrfs subvolume create /mnt/@var || { log_message "Failed to create var subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create var subvolume." 10 60; return 1; }
-
-    # Mount subvolumes
-    umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
-    mount -o subvol=@root /dev/sda2 /mnt || { log_message "Failed to mount root subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount root subvolume." 10 60; return 1; }
-    mkdir -p /mnt/{boot,home,var} || { log_message "Failed to create mount directories."; show_dialog --backtitle "Error" --msgbox "Failed to create mount directories." 10 60; return 1; }
-    mount /dev/sda1 /mnt/boot || { log_message "Failed to mount EFI partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount EFI partition." 10 60; return 1; }
-    mount -o subvol=@home /dev/sda2 /mnt/home || { log_message "Failed to mount home subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount home subvolume." 10 60; return 1; }
-    mount -o subvol=@var /dev/sda2 /mnt/var || { log_message "Failed to mount var subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount var subvolume." 10 60; return 1; }
+    case $partition_type in
+        1)
+            # Normal ext4 partition
+            log_message "Creating normal ext4 partition..."
+            parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
+            parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to create ext4 partition." 10 60; return 1; }
+            mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to format ext4 partition." 10 60; return 1; }
+            ;;
+        2)
+            # Btrfs partition with Timeshift
+            log_message "Creating Btrfs partition with Timeshift..."
+            parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
+            parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
+            mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
+            mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
+            btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume." 10 60; return 1; }
+            umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
+            mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume." 10 60; return 1; }
+            mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; show_dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory." 10 60; return 1; }
+            mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume." 10 60; return 1; }
+            ;;
+        *)
+            show_dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60
+            return 1
+            ;;
+    esac
 
     # Log success message
     log_message "Disk partitioning completed successfully."
