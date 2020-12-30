@@ -95,10 +95,17 @@ install_base_system() {
     # Change root to the new system
     arch-chroot /mnt /bin/bash <<EOF
     # Install base system packages
-    pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr || { log_message "Failed to install base system packages."; show_dialog --backtitle "Error" --msgbox "Failed to install base system packages." 10 60; exit 1; }
-
-    # Install network tools (optional)
-    pacman -S --noconfirm networkmanager || { log_message "Failed to install network tools."; show_dialog --backtitle "Error" --msgbox "Failed to install network tools." 10 60; exit 1; }
+    if [[ $base_installation_option == "minimal" ]]; then
+        pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr || { log_message "Failed to install minimal base system packages."; show_dialog --backtitle "Error" --msgbox "Failed to install minimal base system packages." 10 60; exit 1; }
+    elif [[ $base_installation_option == "gnome" ]]; then
+        pacman -S --noconfirm gnome gnome-extra networkmanager || { log_message "Failed to install GNOME desktop environment."; show_dialog --backtitle "Error" --msgbox "Failed to install GNOME desktop environment." 10 60; exit 1; }
+    elif [[ $base_installation_option == "kde" ]]; then
+        pacman -S --noconfirm plasma kde-applications networkmanager || { log_message "Failed to install KDE Plasma desktop environment."; show_dialog --backtitle "Error" --msgbox "Failed to install KDE Plasma desktop environment." 10 60; exit 1; }
+    else
+        log_message "Invalid base installation option."
+        show_dialog --backtitle "Error" --msgbox "Invalid base installation option." 10 60
+        exit 1
+    fi
 
     # Configure and install GRUB
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
