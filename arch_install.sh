@@ -42,48 +42,45 @@ install_dialog() {
     fi
 }
 
-# Function to partition the disk
+# Function to handle partitioning of the disk
 partition_disk() {
-    # Prompt the user to choose the partition type
-    partition_type=$(show_dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
-        1 "Normal ext4 partition" \
-        2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty)
-
-    # Check if user canceled
-    if [ $? -ne 0 ]; then
-        show_dialog --backtitle "Error" --msgbox "Partitioning canceled." 10 60
-        return 1
-    fi
-
+    # Partition type selection
+    partition_type=$(select_partition_type)
     case $partition_type in
-        1)
-            # Normal ext4 partition
-            log_message "Creating normal ext4 partition..."
-            parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
-            parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to create ext4 partition." 10 60; return 1; }
-            mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to format ext4 partition." 10 60; return 1; }
-            ;;
-        2)
-            # Btrfs partition with Timeshift
-            log_message "Creating Btrfs partition with Timeshift..."
-            parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
-            parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
-            mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
-            mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
-            btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume." 10 60; return 1; }
-            umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
-            mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume." 10 60; return 1; }
-            mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; show_dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory." 10 60; return 1; }
-            mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume." 10 60; return 1; }
-            ;;
-        *)
-            show_dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60
-            return 1
-            ;;
+        1) create_ext4_partition ;;
+        2) create_btrfs_partition ;;
+        *) show_dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
     esac
+}
 
-    # Log success message
-    log_message "Disk partitioning completed successfully."
+# Function to select the partition type
+select_partition_type() {
+    show_dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
+        1 "Normal ext4 partition" \
+        2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty
+    return $?
+}
+
+# Function to create an ext4 partition
+create_ext4_partition() {
+    log_message "Creating normal ext4 partition..."
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to create ext4 partition." 10 60; return 1; }
+    mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to format ext4 partition." 10 60; return 1; }
+}
+
+# Function to create a Btrfs partition with Timeshift
+create_btrfs_partition() {
+    log_message "Creating Btrfs partition with Timeshift..."
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
+    mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
+    mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
+    btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume." 10 60; return 1; }
+    umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
+    mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume." 10 60; return 1; }
+    mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; show_dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory." 10 60; return 1; }
+    mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume." 10 60; return 1; }
 }
 
 # Function to install the base Arch Linux system
@@ -206,7 +203,17 @@ main() {
     # Start the installer
     log_message "Installer started."
 
-    # Create an associative array to hold dialog menu options
+    # Menu loop
+    while true; do
+        choice=$(show_menu)
+        handle_choice "$choice"
+    done
+
+    log_message "Installer completed."
+}
+
+# Function to display the menu
+show_menu() {
     declare -A menu_options=(
         [1]="Partition Disk: Partition the disk to prepare for installation"
         [2]="Install Base System: Install the base Arch Linux system"
@@ -216,75 +223,26 @@ main() {
         [6]="Exit: Exit the installer"
     )
 
-    # Create an array to hold sorted dialog menu options
     dialog_options=()
-    # Sort the keys in ascending order
     sorted_keys=($(echo "${!menu_options[@]}" | tr ' ' '\n' | sort -n))
     for key in "${sorted_keys[@]}"; do
         dialog_options+=("$key" "${menu_options[$key]}")
     done
 
-    step=1
-    while true; do
-        # Display the menu
-        choice=$(show_dialog --backtitle "ArchTUI" --title "Step $step: Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty) || { log_message "Failed to display menu. Exiting..."; exit 1; }
+    show_dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty
+}
 
-        # Handle user choice based on the current step
-        case $choice in
-            1)
-                if [ $step -eq 1 ]; then
-                    # Partition Disk
-                    partition_disk || { show_dialog --backtitle "Error" --msgbox "Failed to partition the disk." 10 60; continue; }
-                    ((step++))
-                else
-                    show_dialog --backtitle "Error" --msgbox "Please complete step 1 first." 10 60
-                fi
-                ;;
-            2)
-                if [ $step -eq 2 ]; then
-                    # Install Base System
-                    install_base_system || { show_dialog --backtitle "Error" --msgbox "Failed to install the base system." 10 60; continue; }
-                    ((step++))
-                else
-                    show_dialog --backtitle "Error" --msgbox "Please complete step 2 first." 10 60
-                fi
-                ;;
-            3)
-                if [ $step -eq 3 ]; then
-                    # Configure System
-                    configure_system || { show_dialog --backtitle "Error" --msgbox "Failed to configure the system." 10 60; continue; }
-                    ((step++))
-                else
-                    show_dialog --backtitle "Error" --msgbox "Please complete step 3 first." 10 60
-                fi
-                ;;
-            4)
-                if [ $step -eq 4 ]; then
-                    # Add Additional Pacman Packages
-                    add_additional_packages || { show_dialog --backtitle "Error" --msgbox "Failed to add additional pacman packages." 10 60; continue; }
-                    ((step++))
-                else
-                    show_dialog --backtitle "Error" --msgbox "Please complete step 4 first." 10 60
-                fi
-                ;;
-            5)
-                if [ $step -eq 5 ]; then
-                    # Reboot System
-                    show_dialog --backtitle "ArchTUI" --msgbox "Rebooting system..." 10 40
-                    reboot
-                else
-                    show_dialog --backtitle "Error" --msgbox "Please complete step 5 first." 10 60
-                fi
-                ;;
-            6)
-                # Exit
-                show_dialog --msgbox "Exiting..." 10 40
-                exit
-                ;;
-        esac
-    done
-
-    log_message "Installer completed."
+# Function to handle user choices
+handle_choice() {
+    local choice="$1"
+    case $choice in
+        1) partition_disk ;;
+        2) install_base_system ;;
+        3) configure_system ;;
+        4) add_additional_packages ;;
+        5) reboot ;;
+        6) show_dialog --msgbox "Exiting..." 10 40; exit ;;
+    esac
 }
 
 # Start the installer
