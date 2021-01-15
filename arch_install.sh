@@ -212,7 +212,8 @@ main() {
         [2]="Install Base System: Install the base Arch Linux system"
         [3]="Configure System: Configure system settings and user accounts"
         [4]="Add Additional Pacman Packages: Add additional packages using pacman"
-        [5]="Exit: Exit the installer"
+        [5]="Reboot System: Reboot the system to start using the newly installed Arch Linux"
+        [6]="Exit: Exit the installer"
     )
 
     # Create an array to hold sorted dialog menu options
@@ -223,35 +224,60 @@ main() {
         dialog_options+=("$key" "${menu_options[$key]}")
     done
 
+    step=1
     while true; do
         # Display the menu
-        choice=$(show_dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty) || { log_message "Failed to display menu. Exiting..."; exit 1; }
+        choice=$(show_dialog --backtitle "ArchTUI" --title "Step $step: Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty) || { log_message "Failed to display menu. Exiting..."; exit 1; }
 
-        # Handle user choice
+        # Handle user choice based on the current step
         case $choice in
             1)
-                # Partition Disk
-                partition_disk || { show_dialog --backtitle "Error" --msgbox "Failed to partition the disk." 10 60; continue; }
+                if [ $step -eq 1 ]; then
+                    # Partition Disk
+                    partition_disk || { show_dialog --backtitle "Error" --msgbox "Failed to partition the disk." 10 60; continue; }
+                    ((step++))
+                else
+                    show_dialog --backtitle "Error" --msgbox "Please complete step 1 first." 10 60
+                fi
                 ;;
             2)
-                # Install Base System
-                install_base_system || { show_dialog --backtitle "Error" --msgbox "Failed to install the base system." 10 60; continue; }
+                if [ $step -eq 2 ]; then
+                    # Install Base System
+                    install_base_system || { show_dialog --backtitle "Error" --msgbox "Failed to install the base system." 10 60; continue; }
+                    ((step++))
+                else
+                    show_dialog --backtitle "Error" --msgbox "Please complete step 2 first." 10 60
+                fi
                 ;;
             3)
-                # Configure System
-                configure_system || { show_dialog --backtitle "Error" --msgbox "Failed to configure the system." 10 60; continue; }
+                if [ $step -eq 3 ]; then
+                    # Configure System
+                    configure_system || { show_dialog --backtitle "Error" --msgbox "Failed to configure the system." 10 60; continue; }
+                    ((step++))
+                else
+                    show_dialog --backtitle "Error" --msgbox "Please complete step 3 first." 10 60
+                fi
                 ;;
             4)
-                # Add Additional Pacman Packages
-                add_additional_packages || { show_dialog --backtitle "Error" --msgbox "Failed to add additional pacman packages." 10 60; continue; }
+                if [ $step -eq 4 ]; then
+                    # Add Additional Pacman Packages
+                    add_additional_packages || { show_dialog --backtitle "Error" --msgbox "Failed to add additional pacman packages." 10 60; continue; }
+                    ((step++))
+                else
+                    show_dialog --backtitle "Error" --msgbox "Please complete step 4 first." 10 60
+                fi
                 ;;
             5)
-                # Exit
-                show_dialog --msgbox "Exiting..." 10 40
-                exit
+                if [ $step -eq 5 ]; then
+                    # Reboot System
+                    show_dialog --backtitle "ArchTUI" --msgbox "Rebooting system..." 10 40
+                    reboot
+                else
+                    show_dialog --backtitle "Error" --msgbox "Please complete step 5 first." 10 60
+                fi
                 ;;
-            *)
-                # If the user cancels or presses Escape, exit the installer
+            6)
+                # Exit
                 show_dialog --msgbox "Exiting..." 10 40
                 exit
                 ;;
