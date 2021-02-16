@@ -83,6 +83,34 @@ create_btrfs_partition() {
     mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume." 10 60; return 1; }
 }
 
+# Function to install base system packages based on the installation option
+install_base_packages() {
+    local base_installation_option="$1"
+    case $base_installation_option in
+        minimal)
+            pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr ;;
+        gnome)
+            pacman -S --noconfirm gnome gnome-extra networkmanager ;;
+        kde)
+            pacman -S --noconfirm plasma kde-applications networkmanager ;;
+        *)
+            log_message "Invalid base installation option."
+            show_dialog --backtitle "Error" --msgbox "Invalid base installation option." 10 60
+            exit 1 ;;
+    esac
+}
+
+# Function to configure and install GRUB
+configure_grub() {
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
+    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration." 10 60; exit 1; }
+}
+
+# Function to enable essential services
+enable_services() {
+    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service." 10 60; exit 1; }
+}
+
 # Function to install the base Arch Linux system
 install_base_system() {
     log_message "Installing base system..."
@@ -92,28 +120,17 @@ install_base_system() {
     # Change root to the new system
     arch-chroot /mnt /bin/bash <<EOF
     # Install base system packages
-    if [[ $base_installation_option == "minimal" ]]; then
-        pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr || { log_message "Failed to install minimal base system packages."; show_dialog --backtitle "Error" --msgbox "Failed to install minimal base system packages." 10 60; exit 1; }
-    elif [[ $base_installation_option == "gnome" ]]; then
-        pacman -S --noconfirm gnome gnome-extra networkmanager || { log_message "Failed to install GNOME desktop environment."; show_dialog --backtitle "Error" --msgbox "Failed to install GNOME desktop environment." 10 60; exit 1; }
-    elif [[ $base_installation_option == "kde" ]]; then
-        pacman -S --noconfirm plasma kde-applications networkmanager || { log_message "Failed to install KDE Plasma desktop environment."; show_dialog --backtitle "Error" --msgbox "Failed to install KDE Plasma desktop environment." 10 60; exit 1; }
-    else
-        log_message "Invalid base installation option."
-        show_dialog --backtitle "Error" --msgbox "Invalid base installation option." 10 60
-        exit 1
-    fi
+    install_base_packages "$base_installation_option" || exit 1
 
     # Configure and install GRUB
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
-    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration." 10 60; exit 1; }
+    configure_grub || exit 1
 
-    # Enable essential services (optional)
-    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service." 10 60; exit 1; }
+    # Enable essential services
+    enable_services || exit 1
 EOF
 
-    # Check if chroot command succeeded
-    if [ $? -ne 0 ]; then
+    local chroot_exit_status=$?
+    if [ $chroot_exit_status -ne 0 ]; then
         log_message "Failed to change root to the new system."
         show_dialog --backtitle "Error" --msgbox "Failed to change root to the new system." 10 60
         return 1
@@ -123,28 +140,31 @@ EOF
     log_message "Base system installation completed successfully."
 }
 
-# Function to configure the system
-configure_system() {
-    # Set hostname
+# Function to set hostname
+set_hostname() {
+    local hostname_input
     hostname_input=$(show_dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
         return 1
     fi
     echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; show_dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
+}
 
-    # Set up network (optional)
-    # Configure network settings here...
-
-    # Set root password
+# Function to set root password
+set_root_password() {
+    local root_password_input
     root_password_input=$(show_dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
         return 1
     fi
     echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; show_dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
+}
 
-    # Add a new user
+# Function to add a new user
+add_new_user() {
+    local username_input user_password_input
     username_input=$(show_dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
@@ -157,22 +177,40 @@ configure_system() {
         return 1
     fi
     echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input." 10 60; return 1; }
-
-    # Add the user to sudoers (optional)
     usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
+}
+
+# Function to configure the system
+configure_system() {
+    log_message "Configuring system..."
+    
+    # Set hostname
+    set_hostname || return 1
+
+    # Set root password
+    set_root_password || return 1
+
+    # Add a new user
+    add_new_user || return 1
 
     # Log success message
     log_message "System configuration completed successfully."
 }
 
-# Function to add additional pacman packages
-add_additional_packages() {
+# Function to get additional pacman packages input from user
+get_additional_packages_input() {
+    local additional_packages
     additional_packages=$(show_dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "Package input cancelled. No additional packages installed." 10 60
         return 1
     fi
+    echo "$additional_packages"
+}
 
+# Function to install additional pacman packages
+install_additional_packages() {
+    local additional_packages="$1"
     # Check if input is not empty
     if [ -n "$additional_packages" ]; then
         log_message "Installing additional packages: $additional_packages"
@@ -190,9 +228,15 @@ add_additional_packages() {
     else
         show_dialog --backtitle "ArchTUI" --msgbox "No additional packages specified. Skipping installation." 10 60
     fi
+}
 
-    # Log success message
-    log_message "Additional packages installed successfully."
+# Function to add additional pacman packages
+add_additional_packages() {
+    log_message "Adding additional pacman packages..."
+    local additional_packages
+    additional_packages=$(get_additional_packages_input) || return 1
+    install_additional_packages "$additional_packages" || return 1
+    log_message "Additional packages installation completed successfully."
 }
 
 # Main function to display the menu and handle user choices
