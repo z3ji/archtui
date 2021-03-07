@@ -42,6 +42,33 @@ install_dialog() {
     fi
 }
 
+# Validate hostname
+validate_hostname() {
+    local hostname_input="$1"
+    if [[ ! $hostname_input =~ ^[a-zA-Z0-9.-]+$ ]]; then
+        show_dialog --backtitle "Error" --msgbox "Invalid hostname. Please use only alphanumeric characters, hyphens, and dots." 10 60
+        return 1
+    fi
+}
+
+# Validate username
+validate_username() {
+    local username_input="$1"
+    if [[ ! $username_input =~ ^[a-z_][a-z0-9_-]{0,30}$ ]]; then
+        show_dialog --backtitle "Error" --msgbox "Invalid username. Please use only lowercase letters, digits, hyphens, and underscores. It must start with a letter or underscore and be 1-32 characters long." 10 60
+        return 1
+    fi
+}
+
+# Validate password
+validate_password() {
+    local password_input="$1"
+    if [[ ${#password_input} -lt 8 ]]; then
+        show_dialog --backtitle "Error" --msgbox "Password must be at least 8 characters long." 10 60
+        return 1
+    fi
+}
+
 # Function to handle partitioning of the disk
 partition_disk() {
     # Partition type selection
@@ -148,6 +175,7 @@ set_hostname() {
         show_dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
         return 1
     fi
+    validate_hostname "$hostname_input" || return 1
     echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; show_dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
 }
 
@@ -159,6 +187,7 @@ set_root_password() {
         show_dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
         return 1
     fi
+    validate_password "$root_password_input" || return 1
     echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; show_dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
 }
 
@@ -170,12 +199,14 @@ add_new_user() {
         show_dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
         return 1
     fi
+    validate_username "$username_input" || return 1
     useradd -m "$username_input" || { log_message "Failed to add user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to add user $username_input." 10 60; return 1; }
     user_password_input=$(show_dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
         return 1
     fi
+    validate_password "$user_password_input" || return 1
     echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input." 10 60; return 1; }
     usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
 }
