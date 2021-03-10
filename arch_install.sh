@@ -91,23 +91,23 @@ select_partition_type() {
 # Function to create an ext4 partition
 create_ext4_partition() {
     log_message "Creating normal ext4 partition..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to create ext4 partition." 10 60; return 1; }
-    mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to format ext4 partition." 10 60; return 1; }
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to create ext4 partition. Please check your disk and try again." 10 60; return 1; }
+    mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to format ext4 partition. Please check your disk and try again." 10 60; return 1; }
 }
 
 # Function to create a Btrfs partition with Timeshift
 create_btrfs_partition() {
     log_message "Creating Btrfs partition with Timeshift..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition." 10 60; return 1; }
-    mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition." 10 60; return 1; }
-    mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition." 10 60; return 1; }
-    btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume." 10 60; return 1; }
-    umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition." 10 60; return 1; }
-    mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume." 10 60; return 1; }
-    mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; show_dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory." 10 60; return 1; }
-    mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume." 10 60; return 1; }
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+    umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+    mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; show_dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory. Please check your disk and try again." 10 60; return 1; }
+    mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60; return 1; }
 }
 
 # Function to install base system packages based on the installation option
@@ -121,28 +121,28 @@ install_base_packages() {
         kde)
             pacman -S --noconfirm plasma kde-applications networkmanager ;;
         *)
-            log_message "Invalid base installation option."
-            show_dialog --backtitle "Error" --msgbox "Invalid base installation option." 10 60
+            log_message "Invalid base installation option: $base_installation_option"
+            show_dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
             exit 1 ;;
     esac
 }
 
 # Function to configure and install GRUB
 configure_grub() {
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB." 10 60; exit 1; }
-    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration." 10 60; exit 1; }
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB. Please check your bootloader configuration and try again." 10 60; exit 1; }
+    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration. Please check your bootloader configuration and try again." 10 60; exit 1; }
 }
 
 # Function to enable essential services
 enable_services() {
-    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service." 10 60; exit 1; }
+    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service. Please check your network configuration and try again." 10 60; exit 1; }
 }
 
 # Function to install the base Arch Linux system
 install_base_system() {
     log_message "Installing base system..."
     # Generate an fstab file
-    genfstab -U /mnt >> /mnt/etc/fstab || { log_message "Failed to generate fstab file."; show_dialog --backtitle "Error" --msgbox "Failed to generate fstab file." 10 60; return 1; }
+    genfstab -U /mnt >> /mnt/etc/fstab || { log_message "Failed to generate fstab file."; show_dialog --backtitle "Error" --msgbox "Failed to generate fstab file. Please check your system configuration and try again." 10 60; return 1; }
 
     # Change root to the new system
     arch-chroot /mnt /bin/bash <<EOF
@@ -159,7 +159,7 @@ EOF
     local chroot_exit_status=$?
     if [ $chroot_exit_status -ne 0 ]; then
         log_message "Failed to change root to the new system."
-        show_dialog --backtitle "Error" --msgbox "Failed to change root to the new system." 10 60
+        show_dialog --backtitle "Error" --msgbox "Failed to change root to the new system. Please check your system configuration and try again." 10 60
         return 1
     fi
 
@@ -176,7 +176,7 @@ set_hostname() {
         return 1
     fi
     validate_hostname "$hostname_input" || return 1
-    echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; show_dialog --backtitle "Error" --msgbox "Failed to set hostname." 10 60; return 1; }
+    echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; show_dialog --backtitle "Error" --msgbox "Failed to set hostname. Please check your input and try again." 10 60; return 1; }
 }
 
 # Function to set root password
@@ -188,7 +188,7 @@ set_root_password() {
         return 1
     fi
     validate_password "$root_password_input" || return 1
-    echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; show_dialog --backtitle "Error" --msgbox "Failed to set root password." 10 60; return 1; }
+    echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; show_dialog --backtitle "Error" --msgbox "Failed to set root password. Please check your input and try again." 10 60; return 1; }
 }
 
 # Function to add a new user
@@ -200,15 +200,15 @@ add_new_user() {
         return 1
     fi
     validate_username "$username_input" || return 1
-    useradd -m "$username_input" || { log_message "Failed to add user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to add user $username_input." 10 60; return 1; }
+    useradd -m "$username_input" || { log_message "Failed to add user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to add user $username_input. Please check your input and try again." 10 60; return 1; }
     user_password_input=$(show_dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         show_dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
         return 1
     fi
     validate_password "$user_password_input" || return 1
-    echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input." 10 60; return 1; }
-    usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers." 10 60; return 1; }
+    echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input. Please check your input and try again." 10 60; return 1; }
+    usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers. Please check your system configuration and try again." 10 60; return 1; }
 }
 
 # Function to configure the system
