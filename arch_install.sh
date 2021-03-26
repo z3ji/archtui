@@ -42,6 +42,47 @@ install_dialog() {
     fi
 }
 
+# Function to read command-line arguments
+read_command_line_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --partition-type)
+                PARTITION_TYPE="$2"
+                shift 2
+                ;;
+            --base-installation)
+                BASE_INSTALLATION_OPTION="$2"
+                shift 2
+                ;;
+            --additional-packages)
+                ADDITIONAL_PACKAGES="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Function to display usage information
+show_usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo "Options:"
+    echo "  --partition-type <type>         Specify partition type (1 for ext4, 2 for Btrfs)"
+    echo "  --base-installation <option>    Specify base installation option (minimal, gnome, kde)"
+    echo "  --additional-packages <list>    Specify additional packages to install"
+}
+
+# Function to read configuration from a file
+read_configuration_file() {
+    local config_file="$1"
+    if [ -f "$config_file" ]; then
+        source "$config_file"
+    fi
+}
+
 # Validate hostname
 validate_hostname() {
     local hostname_input="$1"
@@ -272,11 +313,15 @@ add_additional_packages() {
 
 # Main function to display the menu and handle user choices
 main() {
-    check_root_privileges
-    install_dialog || { log_message "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
+    # Read configuration from file
+    read_configuration_file "arch_install.conf"
+
+    # Read command-line arguments
+    read_command_line_arguments "$@"
 
     # Start the installer
-    log_message "Installer started."
+    check_root_privileges
+    install_dialog || { log_message "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
 
     # Menu loop
     while true; do
