@@ -313,15 +313,28 @@ add_additional_packages() {
 
 # Main function to display the menu and handle user choices
 main() {
-    # Read configuration from file
-    read_configuration_file "arch_install.conf"
-
     # Read command-line arguments
     read_command_line_arguments "$@"
 
     # Start the installer
     check_root_privileges
     install_dialog || { log_message "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
+
+    # Check if the config file exists and source it
+    if [ -f "arch_install.conf" ]; then
+        source "arch_install.conf"
+        # Check if required variables are set in the config file
+        if [ -z "$PARTITION_TYPE" ] || [ -z "$BASE_INSTALLATION_OPTION" ] || [ -z "$ADDITIONAL_PACKAGES" ]; then
+            log_message "Error: Configuration file is missing required variables. Please check the configuration file and try again."
+            exit 1
+        fi
+    else
+        log_message "Error: Configuration file not found. Please make sure 'arch_install.conf' exists in the current directory."
+        exit 1
+    fi
+
+    # Start the installer
+    log_message "Installer started."
 
     # Menu loop
     while true; do
