@@ -121,23 +121,55 @@ select_partition_type() {
 # Function to create an ext4 partition
 create_ext4_partition() {
     log_message "Creating normal ext4 partition..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to create ext4 partition. Please check your disk and try again." 10 60; return 1; }
-    mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to format ext4 partition. Please check your disk and try again." 10 60; return 1; }
+
+    # Prompt user for drive selection
+    drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
+        return 1
+    fi
+
+    # Partition the selected drive
+    parted -s "$drive" mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
+    parted -s "$drive" mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to create ext4 partition. Please check your disk and try again." 10 60; return 1; }
+    mkfs.ext4 "${drive}1" || { log_message "Failed to format ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to format ext4 partition. Please check your disk and try again." 10 60; return 1; }
+
+    log_message "Normal ext4 partition created successfully."
 }
 
 # Function to create a Btrfs partition with Timeshift
 create_btrfs_partition() {
     log_message "Creating Btrfs partition with Timeshift..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+
+    # Prompt user for drive selection
+    drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
+        return 1
+    fi
+
+    # Partition the selected drive
+    parted -s "$drive" mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
+    parted -s "$drive" mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mkfs.btrfs "${drive}1" || { log_message "Failed to format Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+
+    # Mount the Btrfs partition
+    mount "${drive}1" /mnt || { log_message "Failed to mount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+
+    # Create Btrfs subvolume
     btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+
+    # Unmount the partition
     umount /mnt || { log_message "Failed to unmount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+
+    # Mount the Btrfs subvolume
+    mount -o subvol=@ "${drive}1" /mnt || { log_message "Failed to mount Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+
+    # Create Timeshift directory and mount Timeshift subvolume
     mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory. Please check your disk and try again." 10 60; return 1; }
-    mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60; return 1; }
+    mount -o subvol=@timeshift "${drive}1" /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60; return 1; }
+
+    log_message "Btrfs partition with Timeshift created successfully."
 }
 
 # Function to install base system packages based on the installation option
