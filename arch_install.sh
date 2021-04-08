@@ -3,17 +3,6 @@
 # Define the log file
 LOG_FILE="/var/log/arch_install.log"
 
-# Function to display dialog boxes with error handling
-show_dialog() {
-    dialog_output=$(dialog "$@")
-    dialog_exit_status=$?
-    if [ $dialog_exit_status -ne 0 ]; then
-        dialog --backtitle "Error" --msgbox "Dialog command failed with exit status $dialog_exit_status. Please check your system configuration and try again." 10 60
-        exit 1
-    fi
-    echo "$dialog_output"
-}
-
 # Function to log messages with timestamp
 log_message() {
     local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
@@ -23,7 +12,7 @@ log_message() {
 # Function to check if the user has root privileges
 check_root_privileges() {
     if [[ $EUID -ne 0 ]]; then
-        show_dialog --backtitle "Error" --msgbox "This script requires root privileges to install packages. Please run it as root or using sudo." 10 60
+        dialog --backtitle "Error" --msgbox "This script requires root privileges to install packages. Please run it as root or using sudo." 10 60
         exit 1
     fi
 }
@@ -35,7 +24,7 @@ install_dialog() {
         pacman -S --noconfirm dialog
         if [ $? -ne 0 ]; then
             log_message "Failed to install dialog."
-            show_dialog --backtitle "Error" --msgbox "Failed to install dialog. Please install it manually and rerun the script." 10 60
+            dialog --backtitle "Error" --msgbox "Failed to install dialog. Please install it manually and rerun the script." 10 60
             exit 1
         fi
         log_message "Dialog installed successfully."
@@ -87,7 +76,7 @@ read_configuration_file() {
 validate_hostname() {
     local hostname_input="$1"
     if [[ ! $hostname_input =~ ^[a-zA-Z0-9.-]+$ ]]; then
-        show_dialog --backtitle "Error" --msgbox "Invalid hostname. Please use only alphanumeric characters, hyphens, and dots." 10 60
+        dialog --backtitle "Error" --msgbox "Invalid hostname. Please use only alphanumeric characters, hyphens, and dots." 10 60
         return 1
     fi
 }
@@ -96,7 +85,7 @@ validate_hostname() {
 validate_username() {
     local username_input="$1"
     if [[ ! $username_input =~ ^[a-z_][a-z0-9_-]{0,30}$ ]]; then
-        show_dialog --backtitle "Error" --msgbox "Invalid username. Please use only lowercase letters, digits, hyphens, and underscores. It must start with a letter or underscore and be 1-32 characters long." 10 60
+        dialog --backtitle "Error" --msgbox "Invalid username. Please use only lowercase letters, digits, hyphens, and underscores. It must start with a letter or underscore and be 1-32 characters long." 10 60
         return 1
     fi
 }
@@ -105,7 +94,7 @@ validate_username() {
 validate_password() {
     local password_input="$1"
     if [[ ${#password_input} -lt 8 ]]; then
-        show_dialog --backtitle "Error" --msgbox "Password must be at least 8 characters long." 10 60
+        dialog --backtitle "Error" --msgbox "Password must be at least 8 characters long." 10 60
         return 1
     fi
 }
@@ -117,13 +106,13 @@ partition_disk() {
     case $partition_type in
         1) create_ext4_partition ;;
         2) create_btrfs_partition ;;
-        *) show_dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
+        *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
     esac
 }
 
 # Function to select the partition type
 select_partition_type() {
-    show_dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
+    dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
         1 "Normal ext4 partition" \
         2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty
     return $?
@@ -132,23 +121,23 @@ select_partition_type() {
 # Function to create an ext4 partition
 create_ext4_partition() {
     log_message "Creating normal ext4 partition..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to create ext4 partition. Please check your disk and try again." 10 60; return 1; }
-    mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; show_dialog --backtitle "Error" --msgbox "Failed to format ext4 partition. Please check your disk and try again." 10 60; return 1; }
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to create ext4 partition. Please check your disk and try again." 10 60; return 1; }
+    mkfs.ext4 /dev/sda1 || { log_message "Failed to format ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to format ext4 partition. Please check your disk and try again." 10 60; return 1; }
 }
 
 # Function to create a Btrfs partition with Timeshift
 create_btrfs_partition() {
     log_message "Creating Btrfs partition with Timeshift..."
-    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; show_dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
-    parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
-    umount /mnt || { log_message "Failed to unmount Btrfs partition."; show_dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
-    mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; show_dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory. Please check your disk and try again." 10 60; return 1; }
-    mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; show_dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60; return 1; }
+    parted -s /dev/sda mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
+    parted -s /dev/sda mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mkfs.btrfs /dev/sda1 || { log_message "Failed to format Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mount /dev/sda1 /mnt || { log_message "Failed to mount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+    umount /mnt || { log_message "Failed to unmount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    mount -o subvol=@ /dev/sda1 /mnt || { log_message "Failed to mount Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+    mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory. Please check your disk and try again." 10 60; return 1; }
+    mount -o subvol=@timeshift /dev/sda1 /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60; return 1; }
 }
 
 # Function to install base system packages based on the installation option
@@ -163,27 +152,27 @@ install_base_packages() {
             pacman -S --noconfirm plasma kde-applications networkmanager ;;
         *)
             log_message "Invalid base installation option: $base_installation_option"
-            show_dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
+            dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
             exit 1 ;;
     esac
 }
 
 # Function to configure and install GRUB
 configure_grub() {
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; show_dialog --backtitle "Error" --msgbox "Failed to install GRUB. Please check your bootloader configuration and try again." 10 60; exit 1; }
-    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; show_dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration. Please check your bootloader configuration and try again." 10 60; exit 1; }
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; dialog --backtitle "Error" --msgbox "Failed to install GRUB. Please check your bootloader configuration and try again." 10 60; exit 1; }
+    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration. Please check your bootloader configuration and try again." 10 60; exit 1; }
 }
 
 # Function to enable essential services
 enable_services() {
-    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; show_dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service. Please check your network configuration and try again." 10 60; exit 1; }
+    systemctl enable NetworkManager || { log_message "Failed to enable NetworkManager service."; dialog --backtitle "Error" --msgbox "Failed to enable NetworkManager service. Please check your network configuration and try again." 10 60; exit 1; }
 }
 
 # Function to install the base Arch Linux system
 install_base_system() {
     log_message "Installing base system..."
     # Generate an fstab file
-    genfstab -U /mnt >> /mnt/etc/fstab || { log_message "Failed to generate fstab file."; show_dialog --backtitle "Error" --msgbox "Failed to generate fstab file. Please check your system configuration and try again." 10 60; return 1; }
+    genfstab -U /mnt >> /mnt/etc/fstab || { log_message "Failed to generate fstab file."; dialog --backtitle "Error" --msgbox "Failed to generate fstab file. Please check your system configuration and try again." 10 60; return 1; }
 
     # Change root to the new system
     arch-chroot /mnt /bin/bash <<EOF
@@ -200,7 +189,7 @@ EOF
     local chroot_exit_status=$?
     if [ $chroot_exit_status -ne 0 ]; then
         log_message "Failed to change root to the new system."
-        show_dialog --backtitle "Error" --msgbox "Failed to change root to the new system. Please check your system configuration and try again." 10 60
+        dialog --backtitle "Error" --msgbox "Failed to change root to the new system. Please check your system configuration and try again." 10 60
         return 1
     fi
 
@@ -211,45 +200,45 @@ EOF
 # Function to set hostname
 set_hostname() {
     local hostname_input
-    hostname_input=$(show_dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
+    hostname_input=$(dialog --backtitle "ArchTUI" --inputbox "Enter hostname:" 8 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
-        show_dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
+        dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
         return 1
     fi
     validate_hostname "$hostname_input" || return 1
-    echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; show_dialog --backtitle "Error" --msgbox "Failed to set hostname. Please check your input and try again." 10 60; return 1; }
+    echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; dialog --backtitle "Error" --msgbox "Failed to set hostname. Please check your input and try again." 10 60; return 1; }
 }
 
 # Function to set root password
 set_root_password() {
     local root_password_input
-    root_password_input=$(show_dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty)
+    root_password_input=$(dialog --backtitle "ArchTUI" --title "Root Password" --insecure --passwordbox "Enter root password:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
-        show_dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
+        dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
         return 1
     fi
     validate_password "$root_password_input" || return 1
-    echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; show_dialog --backtitle "Error" --msgbox "Failed to set root password. Please check your input and try again." 10 60; return 1; }
+    echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; dialog --backtitle "Error" --msgbox "Failed to set root password. Please check your input and try again." 10 60; return 1; }
 }
 
 # Function to add a new user
 add_new_user() {
     local username_input user_password_input
-    username_input=$(show_dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
+    username_input=$(dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
-        show_dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
+        dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
         return 1
     fi
     validate_username "$username_input" || return 1
-    useradd -m "$username_input" || { log_message "Failed to add user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to add user $username_input. Please check your input and try again." 10 60; return 1; }
-    user_password_input=$(show_dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
+    useradd -m "$username_input" || { log_message "Failed to add user $username_input."; dialog --backtitle "Error" --msgbox "Failed to add user $username_input. Please check your input and try again." 10 60; return 1; }
+    user_password_input=$(dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
-        show_dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
+        dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
         return 1
     fi
     validate_password "$user_password_input" || return 1
-    echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; show_dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input. Please check your input and try again." 10 60; return 1; }
-    usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; show_dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers. Please check your system configuration and try again." 10 60; return 1; }
+    echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input. Please check your input and try again." 10 60; return 1; }
+    usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers. Please check your system configuration and try again." 10 60; return 1; }
 }
 
 # Function to configure the system
@@ -272,9 +261,9 @@ configure_system() {
 # Function to get additional pacman packages input from user
 get_additional_packages_input() {
     local additional_packages
-    additional_packages=$(show_dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty)
+    additional_packages=$(dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
-        show_dialog --backtitle "Error" --msgbox "Package input cancelled. No additional packages installed." 10 60
+        dialog --backtitle "Error" --msgbox "Package input cancelled. No additional packages installed." 10 60
         return 1
     fi
     echo "$additional_packages"
@@ -286,19 +275,19 @@ install_additional_packages() {
     # Check if input is not empty
     if [ -n "$additional_packages" ]; then
         log_message "Installing additional packages: $additional_packages"
-        show_dialog --backtitle "ArchTUI" --title "Installing Packages" --infobox "Installing additional packages..." 5 50
+        dialog --backtitle "ArchTUI" --title "Installing Packages" --infobox "Installing additional packages..." 5 50
         # Install additional packages
         echo "$additional_packages" | xargs pacman -S --noconfirm
         if [ $? -ne 0 ]; then
             log_message "Failed to install additional packages."
-            show_dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
+            dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
             return 1
         else
             log_message "Additional packages installed successfully."
-            show_dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
+            dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
         fi
     else
-        show_dialog --backtitle "ArchTUI" --msgbox "No additional packages specified. Skipping installation." 10 60
+        dialog --backtitle "ArchTUI" --msgbox "No additional packages specified. Skipping installation." 10 60
     fi
 }
 
@@ -311,6 +300,46 @@ add_additional_packages() {
     log_message "Additional packages installation completed successfully."
 }
 
+# Function to display the menu
+show_menu() {
+    declare -A menu_options=(
+        [1]="Partition Disk"
+        [2]="Install Base System"
+        [3]="Configure System"
+        [4]="Add Additional Pacman Packages"
+        [5]="Reboot System"
+        [q]="Exit"
+    )
+
+    dialog_options=()
+    sorted_keys=($(echo "${!menu_options[@]}" | tr ' ' '\n' | sort -n))
+    for key in "${sorted_keys[@]}"; do
+        if [[ $key == [[:digit:]] ]]; then
+            dialog_options+=("$key" "${menu_options[$key]}")
+        fi
+    done
+    for key in "${sorted_keys[@]}"; do
+        if [[ $key == [[:alpha:]] ]]; then
+            dialog_options+=("$key" "${menu_options[$key]}")
+        fi
+    done
+
+    dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 6 "${dialog_options[@]}" 2>&1 >/dev/tty
+}
+
+# Function to handle user choices
+handle_choice() {
+    local choice="$1"
+    case $choice in
+        1) partition_disk ;;
+        2) install_base_system ;;
+        3) configure_system ;;
+        4) add_additional_packages ;;
+        5) reboot ;;
+        q|Q) dialog --msgbox "Exiting..." 10 40; exit ;;
+    esac
+}
+
 # Main function to display the menu and handle user choices
 main() {
     # Read command-line arguments
@@ -320,16 +349,20 @@ main() {
     check_root_privileges
     install_dialog || { log_message "Failed to install dialog. Please install it manually and rerun the script."; exit 1; }
 
+    # Read the configuration file
+    read_configuration_file
+
     # Check if the config file exists and source it
-    if [ -f "arch_install.conf" ]; then
-        source "arch_install.conf"
+    config_file="$PWD/arch_install.conf"
+    if [ -f "$config_file" ]; then
+        source "$config_file"
         # Check if required variables are set in the config file
         if [ -z "$PARTITION_TYPE" ] || [ -z "$BASE_INSTALLATION_OPTION" ] || [ -z "$ADDITIONAL_PACKAGES" ]; then
             log_message "Error: Configuration file is missing required variables. Please check the configuration file and try again."
             exit 1
         fi
     else
-        log_message "Error: Configuration file not found. Please make sure 'arch_install.conf' exists in the current directory."
+        log_message "Error: Configuration file not found. Please make sure 'arch_install.conf' exists in the root directory of the script."
         exit 1
     fi
 
@@ -343,39 +376,6 @@ main() {
     done
 
     log_message "Installer completed."
-}
-
-# Function to display the menu
-show_menu() {
-    declare -A menu_options=(
-        [1]="Partition Disk: Partition the disk to prepare for installation"
-        [2]="Install Base System: Install the base Arch Linux system"
-        [3]="Configure System: Configure system settings and user accounts"
-        [4]="Add Additional Pacman Packages: Add additional packages using pacman"
-        [5]="Reboot System: Reboot the system to start using the newly installed Arch Linux"
-        [6]="Exit: Exit the installer"
-    )
-
-    dialog_options=()
-    sorted_keys=($(echo "${!menu_options[@]}" | tr ' ' '\n' | sort -n))
-    for key in "${sorted_keys[@]}"; do
-        dialog_options+=("$key" "${menu_options[$key]}")
-    done
-
-    show_dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 5 "${dialog_options[@]}" 2>&1 >/dev/tty
-}
-
-# Function to handle user choices
-handle_choice() {
-    local choice="$1"
-    case $choice in
-        1) partition_disk ;;
-        2) install_base_system ;;
-        3) configure_system ;;
-        4) add_additional_packages ;;
-        5) reboot ;;
-        6) show_dialog --msgbox "Exiting..." 10 40; exit ;;
-    esac
 }
 
 # Start the installer
