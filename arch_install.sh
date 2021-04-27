@@ -118,14 +118,25 @@ select_partition_type() {
     return $?
 }
 
+# Function to prompt user for drive selection
+prompt_drive_selection() {
+    local drive
+    drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
+    if [ $? -ne 0 ]; then
+        dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
+        return 1
+    fi
+    echo "$drive"
+}
+
 # Function to create an ext4 partition
 create_ext4_partition() {
     log_message "Creating normal ext4 partition..."
 
     # Prompt user for drive selection
-    drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
+    local drive
+    drive=$(prompt_drive_selection)
     if [ $? -ne 0 ]; then
-        dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
         return 1
     fi
 
@@ -142,9 +153,9 @@ create_btrfs_partition() {
     log_message "Creating Btrfs partition with Timeshift..."
 
     # Prompt user for drive selection
-    drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
+    local drive
+    drive=$(prompt_drive_selection)
     if [ $? -ne 0 ]; then
-        dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
         return 1
     fi
 
