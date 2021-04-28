@@ -187,12 +187,12 @@ create_btrfs_partition() {
 install_base_packages() {
     local base_installation_option="$1"
     case $base_installation_option in
-        minimal)
-            pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr ;;
+        minimal|gnome|kde)
+            pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr networkmanager ;;
         gnome)
-            pacman -S --noconfirm gnome gnome-extra networkmanager ;;
+            pacman -S --noconfirm gnome gnome-extra ;;
         kde)
-            pacman -S --noconfirm plasma kde-applications networkmanager ;;
+            pacman -S --noconfirm plasma kde-applications ;;
         *)
             log_message "Invalid base installation option: $base_installation_option"
             dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
