@@ -214,6 +214,14 @@ enable_services() {
 # Function to install the base Arch Linux system
 install_base_system() {
     log_message "Installing base system..."
+
+    # Check if /mnt is mounted
+    if ! mountpoint -q /mnt; then
+        log_message "Error: /mnt is not a mount point. Please mount the root filesystem to /mnt before proceeding."
+        dialog --backtitle "Error" --msgbox "/mnt is not a mount point. Please mount the root filesystem to /mnt before proceeding." 10 60
+        return 1
+    fi
+
     # Generate an fstab file
     genfstab -U /mnt >> /mnt/etc/fstab || { log_message "Failed to generate fstab file."; dialog --backtitle "Error" --msgbox "Failed to generate fstab file. Please check your system configuration and try again." 10 60; return 1; }
 
