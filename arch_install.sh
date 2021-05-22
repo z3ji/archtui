@@ -215,8 +215,15 @@ enable_services() {
 install_base_system() {
     log_message "Installing base system..."
 
-    # Mount /mnt
-    mount /mnt || { log_message "Failed to mount /mnt."; dialog --backtitle "Error" --msgbox "Failed to mount /mnt. Please check your system configuration and try again." 10 60; return 1; }
+    # Prompt user for drive selection
+    local drive
+    drive=$(prompt_drive_selection)
+    if [ $? -ne 0 ]; then
+        return 1
+    fi    
+
+    # Mount /mnt to "$drive"
+    mount "$drive" /mnt || { log_message "Failed to mount /mnt."; dialog --backtitle "Error" --msgbox "Failed to mount /mnt. Please check your system configuration and try again." 10 60; return 1; }
 
     # Check if /mnt is mounted
     if ! mountpoint -q /mnt; then
