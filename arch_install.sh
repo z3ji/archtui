@@ -101,8 +101,20 @@ validate_password() {
 
 # Function to handle partitioning of the disk
 partition_disk() {
-    # Partition type selection
-    partition_type=$(select_partition_type)
+    # Check if EFI/UEFI or BIOS system
+    if [ -d "/sys/firmware/efi/efivars" ]; then
+        boot_type="UEFI"
+    else
+        boot_type="BIOS"
+    fi
+
+    # Partition type selection based on boot type
+    if [ "$boot_type" = "UEFI" ]; then
+        partition_type=$(select_partition_type_uefi)
+    else
+        partition_type=$(select_partition_type_bios)
+    fi
+
     case $partition_type in
         1) create_ext4_partition ;;
         2) create_btrfs_partition ;;
@@ -110,11 +122,18 @@ partition_disk() {
     esac
 }
 
-# Function to select the partition type
-select_partition_type() {
+# Function to select the partition type for UEFI systems
+select_partition_type_uefi() {
     dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
         1 "Normal ext4 partition" \
         2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty
+    return $?
+}
+
+# Function to select the partition type for BIOS systems
+select_partition_type_bios() {
+    dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 1 \
+        1 "Normal ext4 partition" 2>&1 >/dev/tty
     return $?
 }
 
@@ -215,15 +234,8 @@ enable_services() {
 install_base_system() {
     log_message "Installing base system..."
 
-    # Prompt user for drive selection
-    local drive
-    drive=$(prompt_drive_selection)
-    if [ $? -ne 0 ]; then
-        return 1
-    fi    
-
     # Mount /mnt to "$drive"
-    mount "$drive" /mnt || { log_message "Failed to mount /mnt."; dialog --backtitle "Error" --msgbox "Failed to mount /mnt. Please check your system configuration and try again." 10 60; return 1; }
+    mount "${drive}1" /mnt || { log_message "Failed to mount /mnt."; dialog --backtitle "Error" --msgbox "Failed to mount /mnt. Please check your system configuration and try again." 10 60; return 1; }
 
     # Check if /mnt is mounted
     if ! mountpoint -q /mnt; then
