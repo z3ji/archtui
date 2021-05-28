@@ -221,8 +221,22 @@ install_base_packages() {
 
 # Function to configure and install GRUB
 configure_grub() {
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB || { log_message "Failed to install GRUB."; dialog --backtitle "Error" --msgbox "Failed to install GRUB. Please check your bootloader configuration and try again." 10 60; exit 1; }
-    grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration."; dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration. Please check your bootloader configuration and try again." 10 60; exit 1; }
+    # Check if EFI/UEFI or BIOS system
+    if [ -d "/sys/firmware/efi/efivars" ]; then
+        # For UEFI systems
+        log_message "Configuring GRUB for UEFI..."
+        pacman -S --noconfirm grub efibootmgr || { log_message "Failed to install GRUB packages for UEFI."; dialog --backtitle "Error" --msgbox "Failed to install GRUB packages for UEFI. Please check your system configuration and try again." 10 60; exit 1; }
+        mkdir /boot/efi || { log_message "Failed to create EFI directory."; dialog --backtitle "Error" --msgbox "Failed to create EFI directory. Please check your system configuration and try again." 10 60; exit 1; }
+        mount "$PARTITION_TYPE" /boot/efi || { log_message "Failed to mount EFI partition."; dialog --backtitle "Error" --msgbox "Failed to mount EFI partition. Please check your system configuration and try again." 10 60; exit 1; }
+        grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi || { log_message "Failed to install GRUB to EFI partition."; dialog --backtitle "Error" --msgbox "Failed to install GRUB to EFI partition. Please check your system configuration and try again." 10 60; exit 1; }
+        grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration file."; dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration file. Please check your system configuration and try again." 10 60; exit 1; }
+    else
+        # For BIOS systems
+        log_message "Configuring GRUB for BIOS..."
+        pacman -S --noconfirm grub || { log_message "Failed to install GRUB packages for BIOS."; dialog --backtitle "Error" --msgbox "Failed to install GRUB packages for BIOS. Please check your system configuration and try again." 10 60; exit 1; }
+        grub-install --target=i386-pc "$PARTITION_TYPE" || { log_message "Failed to install GRUB to MBR."; dialog --backtitle "Error" --msgbox "Failed to install GRUB to MBR. Please check your system configuration and try again." 10 60; exit 1; }
+        grub-mkconfig -o /boot/grub/grub.cfg || { log_message "Failed to generate GRUB configuration file."; dialog --backtitle "Error" --msgbox "Failed to generate GRUB configuration file. Please check your system configuration and try again." 10 60; exit 1; }
+    fi
 }
 
 # Function to enable essential services
