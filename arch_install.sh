@@ -101,7 +101,8 @@ validate_password() {
 
 # Function to handle partitioning of the disk
 partition_disk() {
-    # Check if EFI/UEFI or BIOS system
+    local boot_type
+    # Determine boot type (UEFI or BIOS)
     if [ -d "/sys/firmware/efi/efivars" ]; then
         boot_type="UEFI"
     else
@@ -109,32 +110,39 @@ partition_disk() {
     fi
 
     # Partition type selection based on boot type
-    if [ "$boot_type" = "UEFI" ]; then
-        partition_type=$(select_partition_type_uefi)
-    else
-        partition_type=$(select_partition_type_bios)
-    fi
-
-    case $partition_type in
-        1) create_ext4_partition ;;
-        2) create_btrfs_partition ;;
-        *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
+    case $boot_type in
+        "UEFI") select_partition_type_uefi ;;
+        "BIOS") select_partition_type_bios ;;
+        *) dialog --backtitle "Error" --msgbox "Failed to determine boot type." 10 60 ;;
     esac
 }
 
 # Function to select the partition type for UEFI systems
 select_partition_type_uefi() {
-    dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
+    local partition_type
+    partition_type=$(dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
         1 "Normal ext4 partition" \
-        2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty
-    return $?
+        2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty)
+    if [ $? -eq 0 ]; then
+        case $partition_type in
+            1) create_ext4_partition ;;
+            2) create_btrfs_partition ;;
+            *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
+        esac
+    fi
 }
 
 # Function to select the partition type for BIOS systems
 select_partition_type_bios() {
-    dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 1 \
-        1 "Normal ext4 partition" 2>&1 >/dev/tty
-    return $?
+    local partition_type
+    partition_type=$(dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 1 \
+        1 "Normal ext4 partition" 2>&1 >/dev/tty)
+    if [ $? -eq 0 ]; then
+        case $partition_type in
+            1) create_ext4_partition ;;
+            *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
+        esac
+    fi
 }
 
 # Function to prompt user for drive selection
