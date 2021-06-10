@@ -213,18 +213,20 @@ create_btrfs_partition() {
 # Function to install base system packages based on the installation option
 install_base_packages() {
     local base_installation_option="$1"
+    local base_packages="base base-devel linux linux-firmware btrfs-progs grub efibootmgr networkmanager"
+
     case $base_installation_option in
-        minimal|gnome|kde)
-            pacman -S --noconfirm base base-devel linux linux-firmware btrfs-progs grub efibootmgr networkmanager ;;
-        gnome)
-            pacman -S --noconfirm gnome gnome-extra ;;
-        kde)
-            pacman -S --noconfirm plasma kde-applications ;;
-        *)
-            log_message "Invalid base installation option: $base_installation_option"
-            dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
-            exit 1 ;;
+        minimal) ;;
+        gnome) base_packages+=" gnome gnome-extra" ;;
+        kde) base_packages+=" plasma kde-applications" ;;
+        *) log_message "Invalid base installation option: $base_installation_option"
+           dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
+           exit 1 ;;
     esac
+
+    log_message "Installing base system packages..."
+    pacman -S --noconfirm $base_packages || { log_message "Failed to install base system packages."; dialog --backtitle "Error" --msgbox "Failed to install base system packages. Please check your internet connection and try again." 10 60; exit 1; }
+    log_message "Base system packages installed successfully."
 }
 
 # Function to configure and install GRUB
