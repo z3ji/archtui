@@ -152,15 +152,17 @@ create_ext4_partition() {
     local drive
     drive=$(prompt_drive_selection)
     if [ $? -ne 0 ]; then
+        log_message "Partition creation cancelled."
         return 1
     fi
 
     # Partition the selected drive
-    parted -s "$drive" mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
-    parted -s "$drive" mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to create ext4 partition. Please check your disk and try again." 10 60; return 1; }
-    mkfs.ext4 "${drive}1" || { log_message "Failed to format ext4 partition."; dialog --backtitle "Error" --msgbox "Failed to format ext4 partition. Please check your disk and try again." 10 60; return 1; }
+    parted -s "$drive" mklabel gpt || { log_message "Failed to create GPT partition table for $drive."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table for $drive. Please check your disk and try again." 10 60; return 1; }
+    parted -s "$drive" mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition on $drive."; dialog --backtitle "Error" --msgbox "Failed to create ext4 partition on $drive. Please check your disk and try again." 10 60; return 1; }
+    mkfs.ext4 "${drive}1" || { log_message "Failed to format ext4 partition on $drive."; dialog --backtitle "Error" --msgbox "Failed to format ext4 partition on $drive. Please check your disk and try again." 10 60; return 1; }
 
-    log_message "Normal ext4 partition created successfully."
+    log_message "Normal ext4 partition created successfully on $drive."
+    dialog --backtitle "Success" --msgbox "Normal ext4 partition created successfully on $drive." 10 60
 }
 
 # Function to create a Btrfs partition with Timeshift
