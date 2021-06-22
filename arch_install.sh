@@ -99,50 +99,38 @@ validate_password() {
     fi
 }
 
-# Function to handle partitioning of the disk
-partition_disk() {
+# Function to select the partition type based on the detected boot type
+select_partition_type() {
     local boot_type
-    # Determine boot type (UEFI or BIOS)
+    # Check if EFI/UEFI or BIOS system
     if [ -d "/sys/firmware/efi/efivars" ]; then
         boot_type="UEFI"
     else
         boot_type="BIOS"
     fi
 
-    # Partition type selection based on boot type
     case $boot_type in
-        "UEFI") select_partition_type_uefi ;;
-        "BIOS") select_partition_type_bios ;;
-        *) dialog --backtitle "Error" --msgbox "Failed to determine boot type." 10 60 ;;
+        UEFI)
+            dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
+                1 "Normal ext4 partition" \
+                2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty
+            ;;
+        BIOS)
+            dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 1 \
+                1 "Normal ext4 partition" 2>&1 >/dev/tty
+            ;;
     esac
 }
 
-# Function to select the partition type for UEFI systems
-select_partition_type_uefi() {
-    local partition_type
-    partition_type=$(dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
-        1 "Normal ext4 partition" \
-        2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty)
-    if [ $? -eq 0 ]; then
-        case $partition_type in
-            1) create_ext4_partition ;;
-            2) create_btrfs_partition ;;
-            *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
-        esac
-    fi
-}
-
-# Function to select the partition type for BIOS systems
-select_partition_type_bios() {
-    local partition_type
-    partition_type=$(dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 1 \
-        1 "Normal ext4 partition" 2>&1 >/dev/tty)
-    if [ $? -eq 0 ]; then
-        case $partition_type in
-            1) create_ext4_partition ;;
-            *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
-        esac
-    fi
+# Function to handle partitioning of the disk
+partition_disk() {
+    local partition_type=$(select_partition_type)
+    
+    case $partition_type in
+        1) create_ext4_partition ;;
+        2) create_btrfs_partition ;;
+        *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
+    esac
 }
 
 # Function to prompt user for drive selection
