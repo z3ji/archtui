@@ -141,6 +141,13 @@ prompt_drive_selection() {
         dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
         return 1
     fi
+    
+    # Validate drive input
+    if ! [[ "$drive" =~ ^/dev/[a-z]{3}$ ]]; then
+        dialog --backtitle "Error" --msgbox "Invalid drive name. Please enter a valid drive name (e.g., /dev/sda)." 10 60
+        return 1
+    fi
+    
     echo "$drive"
 }
 
