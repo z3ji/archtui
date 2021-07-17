@@ -17,6 +17,48 @@ check_root_privileges() {
     fi
 }
 
+# Function to retry a command with a specified error message
+retry_command() {
+    local command="$1"
+    local error_message="$2"
+    local max_attempts=3
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        log_message "Attempting command: $command (Attempt $attempt)"
+        eval "$command"
+        if [ $? -eq 0 ]; then
+            log_message "Command executed successfully."
+            return 0
+        else
+            log_message "Command failed: $error_message"
+            ((attempt++))
+            sleep 1
+        fi
+    done
+    log_message "Maximum attempts reached. Command failed: $error_message"
+    dialog --backtitle "Error" --msgbox "Failed to execute command after multiple attempts. Please check your system and try again." 10 60
+    return 1
+}
+
+# Function to retry a partition operation with a specified number of retries
+retry_partition() {
+    local operation=$1
+    local max_retries=3
+    local retry_count=0
+
+    until $operation || [ $retry_count -eq $max_retries ]; do
+        ((retry_count++))
+        dialog --backtitle "Error" --msgbox "Operation failed. Retrying ($retry_count/$max_retries)..." 10 60
+    done
+
+    if [ $retry_count -eq $max_retries ]; then
+        dialog --backtitle "Error" --msgbox "Operation failed after $max_retries attempts. Please check your disk and try again." 10 60
+        return 1
+    fi
+
+    return 0
+}
+
 # Function to install dialog if not already installed
 install_dialog() {
     if ! command -v dialog &> /dev/null; then
@@ -122,18 +164,18 @@ select_partition_type() {
     esac
 }
 
-# Function to handle partitioning of the disk
+# Function to handle partitioning of the disk with retry mechanism
 partition_disk() {
     local partition_type=$(select_partition_type)
     
     case $partition_type in
-        1) create_ext4_partition ;;
-        2) create_btrfs_partition ;;
+        1) retry_partition create_ext4_partition ;;
+        2) retry_partition create_btrfs_partition ;;
         *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
     esac
 }
 
-# Function to prompt user for drive selection
+# Function to prompt user for drive selection with retry mechanism
 prompt_drive_selection() {
     local drive
     drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
