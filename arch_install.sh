@@ -173,6 +173,9 @@ partition_disk() {
         2) retry_partition create_btrfs_partition ;;
         *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
     esac
+
+    # After partitioning, call install_base_system with the root partition
+    install_base_system "$root_partition"
 }
 
 # Function to prompt user for drive selection with retry mechanism
@@ -296,14 +299,16 @@ enable_services() {
 # Function to install the base Arch Linux system
 install_base_system() {
     log_message "Installing base system..."
-
-    # Mount /mnt to "$drive"
-    mount "${drive}1" /mnt || { log_message "Failed to mount /mnt."; dialog --backtitle "Error" --msgbox "Failed to mount /mnt. Please check your system configuration and try again." 10 60; return 1; }
+    
+    local root_partition="$1"
+    
+    # Mount root partition
+    mount "$root_partition" /mnt || { log_message "Failed to mount root partition."; dialog --backtitle "Error" --msgbox "Failed to mount root partition. Please check your system configuration and try again." 10 60; return 1; }
 
     # Check if /mnt is mounted
     if ! mountpoint -q /mnt; then
-        log_message "Error: /mnt is not a mount point. Please mount the root filesystem to /mnt before proceeding."
-        dialog --backtitle "Error" --msgbox "/mnt is not a mount point. Please mount the root filesystem to /mnt before proceeding." 10 60
+        log_message "Error: /mnt is not a mount point."
+        dialog --backtitle "Error" --msgbox "/mnt is not a mount point. Please check your system configuration and try again." 10 60
         return 1
     fi
 
