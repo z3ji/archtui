@@ -11,8 +11,11 @@ log_message() {
 
 # Function to check if the user has root privileges
 check_root_privileges() {
+    # Check if the effective user ID is not 0 (root)
     if [[ $EUID -ne 0 ]]; then
+        # Display an error message using dialog
         dialog --backtitle "Error" --msgbox "This script requires root privileges to install packages. Please run it as root or using sudo." 10 60
+        # Exit with a non-zero status code
         exit 1
     fi
 }
@@ -23,20 +26,28 @@ retry_command() {
     local error_message="$2"
     local max_attempts=3
     local attempt=1
+    # Retry the command up to the maximum number of attempts
     while [ $attempt -le $max_attempts ]; do
         log_message "Attempting command: $command (Attempt $attempt)"
+        # Execute the command using eval
         eval "$command"
+        # Check the exit status of the command
         if [ $? -eq 0 ]; then
+            # If successful, log a success message and return
             log_message "Command executed successfully."
             return 0
         else
+            # If failed, log an error message and increment the attempt count
             log_message "Command failed: $error_message"
             ((attempt++))
+            # Wait for a short duration before retrying
             sleep 1
         fi
     done
+    # If maximum attempts reached, log an error message and display an error dialog
     log_message "Maximum attempts reached. Command failed: $error_message"
     dialog --backtitle "Error" --msgbox "Failed to execute command after multiple attempts. Please check your system and try again." 10 60
+    # Return with a non-zero status code
     return 1
 }
 
@@ -46,50 +57,64 @@ retry_partition() {
     local max_retries=3
     local retry_count=0
 
+    # Retry the operation until successful or maximum retries reached
     until $operation || [ $retry_count -eq $max_retries ]; do
         ((retry_count++))
         dialog --backtitle "Error" --msgbox "Operation failed. Retrying ($retry_count/$max_retries)..." 10 60
     done
 
+    # If maximum retries reached, display an error dialog
     if [ $retry_count -eq $max_retries ]; then
         dialog --backtitle "Error" --msgbox "Operation failed after $max_retries attempts. Please check your disk and try again." 10 60
         return 1
     fi
 
+    # Return success if operation was successful
     return 0
 }
 
 # Function to install dialog if not already installed
 install_dialog() {
+    # Check if dialog is installed
     if ! command -v dialog &> /dev/null; then
+        # If not installed, log a message and attempt to install dialog
         log_message "Installing dialog..."
         pacman -S --noconfirm dialog
+        # Check the exit status of the installation command
         if [ $? -ne 0 ]; then
+            # If installation failed, log an error message and display an error dialog
             log_message "Failed to install dialog."
             dialog --backtitle "Error" --msgbox "Failed to install dialog. Please install it manually and rerun the script." 10 60
+            # Exit with a non-zero status code
             exit 1
         fi
+        # Log a success message if installation was successful
         log_message "Dialog installed successfully."
     fi
 }
 
 # Function to read command-line arguments
 read_command_line_arguments() {
+    # Loop through all command-line arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --partition-type)
+                # Read partition type from command line
                 PARTITION_TYPE="$2"
                 shift 2
                 ;;
             --base-installation)
+                # Read base installation option from command line
                 BASE_INSTALLATION_OPTION="$2"
                 shift 2
                 ;;
             --additional-packages)
+                # Read additional packages list from command line
                 ADDITIONAL_PACKAGES="$2"
                 shift 2
                 ;;
             *)
+                # Display an error message for unknown options and exit with a non-zero status code
                 echo "Unknown option: $1"
                 exit 1
                 ;;
@@ -99,6 +124,7 @@ read_command_line_arguments() {
 
 # Function to display usage information
 show_usage() {
+    # Display script usage information
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
     echo "  --partition-type <type>         Specify partition type (1 for ext4, 2 for Btrfs)"
@@ -109,7 +135,9 @@ show_usage() {
 # Function to read configuration from a file
 read_configuration_file() {
     local config_file="$1"
+    # Check if the configuration file exists
     if [ -f "$config_file" ]; then
+        # Source the configuration file
         source "$config_file"
     fi
 }
@@ -117,8 +145,11 @@ read_configuration_file() {
 # Validate hostname
 validate_hostname() {
     local hostname_input="$1"
+    # Validate the hostname format using a regular expression
     if [[ ! $hostname_input =~ ^[a-zA-Z0-9.-]+$ ]]; then
+        # If invalid, display an error dialog
         dialog --backtitle "Error" --msgbox "Invalid hostname. Please use only alphanumeric characters, hyphens, and dots." 10 60
+        # Return with a non-zero status code
         return 1
     fi
 }
@@ -126,8 +157,11 @@ validate_hostname() {
 # Validate username
 validate_username() {
     local username_input="$1"
+    # Validate the username format using a regular expression
     if [[ ! $username_input =~ ^[a-z_][a-z0-9_-]{0,30}$ ]]; then
+        # If invalid, display an error dialog
         dialog --backtitle "Error" --msgbox "Invalid username. Please use only lowercase letters, digits, hyphens, and underscores. It must start with a letter or underscore and be 1-32 characters long." 10 60
+        # Return with a non-zero status code
         return 1
     fi
 }
@@ -135,43 +169,58 @@ validate_username() {
 # Validate password
 validate_password() {
     local password_input="$1"
+    # Check if the password length is less than 8 characters
     if [[ ${#password_input} -lt 8 ]]; then
+        # If less than 8 characters, display an error dialog
         dialog --backtitle "Error" --msgbox "Password must be at least 8 characters long." 10 60
+        # Return with a non-zero status code
         return 1
     fi
 }
 
 # Function to select the partition type based on the detected boot type
 select_partition_type() {
+    # Detect the boot type (UEFI or BIOS)
     local boot_type
-    # Check if EFI/UEFI or BIOS system
     if [ -d "/sys/firmware/efi/efivars" ]; then
         boot_type="UEFI"
     else
         boot_type="BIOS"
     fi
 
+    # Display a dialog to select the partition type based on the boot type
     case $boot_type in
         UEFI)
-            dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 2 \
-                1 "Normal ext4 partition" \
-                2 "Btrfs partition with Timeshift" 2>&1 >/dev/tty
+            dialog_title="Partition Type (UEFI)"
+            menu_options=("1" "Normal ext4 partition" "2" "Btrfs partition with Timeshift")
             ;;
         BIOS)
-            dialog --backtitle "ArchTUI" --title "Partition Type" --menu "Choose the partition type:" 10 60 1 \
-                1 "Normal ext4 partition" 2>&1 >/dev/tty
+            dialog_title="Partition Type (BIOS)"
+            menu_options=("1" "Normal ext4 partition")
             ;;
     esac
+
+    # Display the menu dialog and store the selected option
+    selected_option=$(dialog --backtitle "ArchTUI" --title "$dialog_title" --menu "Choose the partition type:" 10 60 ${#menu_options[@]} "${menu_options[@]}" 2>&1 >/dev/tty)
+
+    # Return the selected option
+    echo "$selected_option"
 }
 
 # Function to handle partitioning of the disk with retry mechanism
 partition_disk() {
+    # Select the partition type
     local partition_type=$(select_partition_type)
     
+    # Based on the selected partition type, call the corresponding partition creation function
     case $partition_type in
         1) retry_partition create_ext4_partition ;;
         2) retry_partition create_btrfs_partition ;;
-        *) dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 ;;
+        *) 
+            # Display an error message for invalid option
+            dialog --backtitle "Error" --msgbox "Invalid option selected." 10 60 
+            return 1
+            ;;
     esac
 
     # After partitioning, call install_base_system with the root partition
@@ -181,13 +230,17 @@ partition_disk() {
 # Function to prompt user for drive selection with retry mechanism
 prompt_drive_selection() {
     local drive
+
+    # Prompt user to enter the drive
     drive=$(dialog --backtitle "ArchTUI" --title "Drive Selection" --inputbox "Enter the drive (e.g., /dev/sda):" 8 60 2>&1 >/dev/tty)
+
+    # Check if the dialog was canceled
     if [ $? -ne 0 ]; then
         dialog --backtitle "Error" --msgbox "Drive selection cancelled." 10 60
         return 1
     fi
     
-    # Validate drive input
+    # Validate drive input using regex
     if ! [[ "$drive" =~ ^/dev/[a-z]{3}$ ]]; then
         dialog --backtitle "Error" --msgbox "Invalid drive name. Please enter a valid drive name (e.g., /dev/sda)." 10 60
         return 1
@@ -202,16 +255,29 @@ create_ext4_partition() {
 
     # Prompt user for drive selection
     local drive
-    drive=$(prompt_drive_selection)
-    if [ $? -ne 0 ]; then
+    if ! drive=$(prompt_drive_selection); then
         log_message "Partition creation cancelled."
         return 1
     fi
 
     # Partition the selected drive
-    parted -s "$drive" mklabel gpt || { log_message "Failed to create GPT partition table for $drive."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table for $drive. Please check your disk and try again." 10 60; return 1; }
-    parted -s "$drive" mkpart primary ext4 1MiB 100% || { log_message "Failed to create ext4 partition on $drive."; dialog --backtitle "Error" --msgbox "Failed to create ext4 partition on $drive. Please check your disk and try again." 10 60; return 1; }
-    mkfs.ext4 "${drive}1" || { log_message "Failed to format ext4 partition on $drive."; dialog --backtitle "Error" --msgbox "Failed to format ext4 partition on $drive. Please check your disk and try again." 10 60; return 1; }
+    if ! parted -s "$drive" mklabel gpt; then
+        log_message "Failed to create GPT partition table for $drive."
+        dialog --backtitle "Error" --msgbox "Failed to create GPT partition table for $drive. Please check your disk and try again." 10 60
+        return 1
+    fi
+
+    if ! parted -s "$drive" mkpart primary ext4 1MiB 100%; then
+        log_message "Failed to create ext4 partition on $drive."
+        dialog --backtitle "Error" --msgbox "Failed to create ext4 partition on $drive. Please check your disk and try again." 10 60
+        return 1
+    fi
+
+    if ! mkfs.ext4 "${drive}1"; then
+        log_message "Failed to format ext4 partition on $drive."
+        dialog --backtitle "Error" --msgbox "Failed to format ext4 partition on $drive. Please check your disk and try again." 10 60
+        return 1
+    fi
 
     log_message "Normal ext4 partition created successfully on $drive."
     dialog --backtitle "Success" --msgbox "Normal ext4 partition created successfully on $drive." 10 60
@@ -223,31 +289,72 @@ create_btrfs_partition() {
 
     # Prompt user for drive selection
     local drive
-    drive=$(prompt_drive_selection)
-    if [ $? -ne 0 ]; then
+    if ! drive=$(prompt_drive_selection); then
         return 1
     fi
 
     # Partition the selected drive
-    parted -s "$drive" mklabel gpt || { log_message "Failed to create GPT partition table."; dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60; return 1; }
-    parted -s "$drive" mkpart primary btrfs 1MiB 100% || { log_message "Failed to create Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60; return 1; }
-    mkfs.btrfs "${drive}1" || { log_message "Failed to format Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    if ! parted -s "$drive" mklabel gpt; then
+        log_message "Failed to create GPT partition table."
+        dialog --backtitle "Error" --msgbox "Failed to create GPT partition table. Please check your disk and try again." 10 60
+        return 1
+    fi
+
+    if ! parted -s "$drive" mkpart primary btrfs 1MiB 100%; then
+        log_message "Failed to create Btrfs partition."
+        dialog --backtitle "Error" --msgbox "Failed to create Btrfs partition. Please check your disk and try again." 10 60
+        return 1
+    fi
+
+    if ! mkfs.btrfs "${drive}1"; then
+        log_message "Failed to format Btrfs partition."
+        dialog --backtitle "Error" --msgbox "Failed to format Btrfs partition. Please check your disk and try again." 10 60
+        return 1
+    fi
 
     # Mount the Btrfs partition
-    mount "${drive}1" /mnt || { log_message "Failed to mount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    if ! mount "${drive}1" /mnt; then
+        log_message "Failed to mount Btrfs partition."
+        dialog --backtitle "Error" --msgbox "Failed to mount Btrfs partition. Please check your disk and try again." 10 60
+        return 1
+    fi
 
     # Create Btrfs subvolume
-    btrfs subvolume create /mnt/@ || { log_message "Failed to create Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+    if ! btrfs subvolume create /mnt/@; then
+        log_message "Failed to create Btrfs subvolume."
+        dialog --backtitle "Error" --msgbox "Failed to create Btrfs subvolume. Please check your disk and try again." 10 60
+        umount /mnt || true
+        return 1
+    fi
 
     # Unmount the partition
-    umount /mnt || { log_message "Failed to unmount Btrfs partition."; dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition. Please check your disk and try again." 10 60; return 1; }
+    if ! umount /mnt; then
+        log_message "Failed to unmount Btrfs partition."
+        dialog --backtitle "Error" --msgbox "Failed to unmount Btrfs partition. Please check your disk and try again." 10 60
+        return 1
+    fi
 
     # Mount the Btrfs subvolume
-    mount -o subvol=@ "${drive}1" /mnt || { log_message "Failed to mount Btrfs subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60; return 1; }
+    if ! mount -o subvol=@ "${drive}1" /mnt; then
+        log_message "Failed to mount Btrfs subvolume."
+        dialog --backtitle "Error" --msgbox "Failed to mount Btrfs subvolume. Please check your disk and try again." 10 60
+        return 1
+    fi
 
     # Create Timeshift directory and mount Timeshift subvolume
-    mkdir -p /mnt/timeshift || { log_message "Failed to create Timeshift directory."; dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory. Please check your disk and try again." 10 60; return 1; }
-    mount -o subvol=@timeshift "${drive}1" /mnt/timeshift || { log_message "Failed to mount Timeshift subvolume."; dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60; return 1; }
+    if ! mkdir -p /mnt/timeshift; then
+        log_message "Failed to create Timeshift directory."
+        dialog --backtitle "Error" --msgbox "Failed to create Timeshift directory. Please check your disk and try again." 10 60
+        umount /mnt || true
+        return 1
+    fi
+
+    if ! mount -o subvol=@timeshift "${drive}1" /mnt/timeshift; then
+        log_message "Failed to mount Timeshift subvolume."
+        dialog --backtitle "Error" --msgbox "Failed to mount Timeshift subvolume. Please check your disk and try again." 10 60
+        umount /mnt || true
+        return 1
+    fi
 
     log_message "Btrfs partition with Timeshift created successfully."
 }
@@ -261,13 +368,19 @@ install_base_packages() {
         minimal) ;;
         gnome) base_packages+=" gnome gnome-extra" ;;
         kde) base_packages+=" plasma kde-applications" ;;
-        *) log_message "Invalid base installation option: $base_installation_option"
-           dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
-           exit 1 ;;
+        *)
+            log_message "Invalid base installation option: $base_installation_option"
+            dialog --backtitle "Error" --msgbox "Invalid base installation option: $base_installation_option. Please select a valid option." 10 60
+            exit 1 ;;
     esac
 
     log_message "Installing base system packages..."
-    pacman -S --noconfirm $base_packages || { log_message "Failed to install base system packages."; dialog --backtitle "Error" --msgbox "Failed to install base system packages. Please check your internet connection and try again." 10 60; exit 1; }
+    if ! pacman -S --noconfirm $base_packages; then
+        log_message "Failed to install base system packages."
+        dialog --backtitle "Error" --msgbox "Failed to install base system packages. Please check your internet connection and try again." 10 60
+        exit 1
+    fi
+
     log_message "Base system packages installed successfully."
 }
 
@@ -346,7 +459,12 @@ set_hostname() {
         dialog --backtitle "Error" --msgbox "Hostname configuration cancelled." 10 60
         return 1
     fi
-    validate_hostname "$hostname_input" || return 1
+
+    # Validate hostname input
+    if ! validate_hostname "$hostname_input"; then
+        return 1
+    fi
+
     echo "$hostname_input" > /etc/hostname || { log_message "Failed to set hostname."; dialog --backtitle "Error" --msgbox "Failed to set hostname. Please check your input and try again." 10 60; return 1; }
 }
 
@@ -358,27 +476,50 @@ set_root_password() {
         dialog --backtitle "Error" --msgbox "Root password configuration cancelled." 10 60
         return 1
     fi
-    validate_password "$root_password_input" || return 1
+
+    # Validate root password input
+    if ! validate_password "$root_password_input"; then
+        return 1
+    fi
+
     echo "$root_password_input" | passwd --stdin root || { log_message "Failed to set root password."; dialog --backtitle "Error" --msgbox "Failed to set root password. Please check your input and try again." 10 60; return 1; }
 }
 
 # Function to add a new user
 add_new_user() {
     local username_input user_password_input
+
+    # Prompt user for username
     username_input=$(dialog --backtitle "ArchTUI" --inputbox "Enter username:" 8 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         dialog --backtitle "Error" --msgbox "User creation cancelled." 10 60
         return 1
     fi
-    validate_username "$username_input" || return 1
+
+    # Validate username
+    if ! validate_username "$username_input"; then
+        return 1
+    fi
+
+    # Create user
     useradd -m "$username_input" || { log_message "Failed to add user $username_input."; dialog --backtitle "Error" --msgbox "Failed to add user $username_input. Please check your input and try again." 10 60; return 1; }
+
+    # Prompt user for password
     user_password_input=$(dialog --backtitle "ArchTUI" --title "User Password" --insecure --passwordbox "Enter password for $username_input:" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
         dialog --backtitle "Error" --msgbox "User password configuration cancelled." 10 60
         return 1
     fi
-    validate_password "$user_password_input" || return 1
+
+    # Validate user password
+    if ! validate_password "$user_password_input"; then
+        return 1
+    fi
+
+    # Set user password
     echo "$user_password_input" | passwd --stdin "$username_input" || { log_message "Failed to set password for user $username_input."; dialog --backtitle "Error" --msgbox "Failed to set password for user $username_input. Please check your input and try again." 10 60; return 1; }
+
+    # Add user to sudoers
     usermod -aG wheel "$username_input" || { log_message "Failed to add $username_input to sudoers."; dialog --backtitle "Error" --msgbox "Failed to add $username_input to sudoers. Please check your system configuration and try again." 10 60; return 1; }
 }
 
@@ -402,32 +543,40 @@ configure_system() {
 # Function to get additional pacman packages input from user
 get_additional_packages_input() {
     local additional_packages
+
+    # Prompt user for additional packages input
     additional_packages=$(dialog --backtitle "ArchTUI" --title "Additional Packages" --inputbox "Enter additional pacman packages (space-separated):" 10 60 2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then
+        # Handle cancellation
         dialog --backtitle "Error" --msgbox "Package input cancelled. No additional packages installed." 10 60
         return 1
     fi
+
     echo "$additional_packages"
 }
 
 # Function to install additional pacman packages
 install_additional_packages() {
     local additional_packages="$1"
+
     # Check if input is not empty
     if [ -n "$additional_packages" ]; then
         log_message "Installing additional packages: $additional_packages"
         dialog --backtitle "ArchTUI" --title "Installing Packages" --infobox "Installing additional packages..." 5 50
+
         # Install additional packages
-        echo "$additional_packages" | xargs pacman -S --noconfirm
-        if [ $? -ne 0 ]; then
+        if ! pacman -S --noconfirm $additional_packages; then
+            # Handle installation failure
             log_message "Failed to install additional packages."
             dialog --backtitle "Error" --msgbox "Failed to install additional packages. Please check your input and try again." 10 60
             return 1
         else
+            # Installation successful
             log_message "Additional packages installed successfully."
             dialog --backtitle "Success" --msgbox "Additional packages installed successfully." 10 60
         fi
     else
+        # No additional packages specified
         dialog --backtitle "ArchTUI" --msgbox "No additional packages specified. Skipping installation." 10 60
     fi
 }
@@ -436,13 +585,16 @@ install_additional_packages() {
 add_additional_packages() {
     log_message "Adding additional pacman packages..."
     local additional_packages
+    # Get additional packages input from user
     additional_packages=$(get_additional_packages_input) || return 1
+    # Install additional packages
     install_additional_packages "$additional_packages" || return 1
     log_message "Additional packages installation completed successfully."
 }
 
 # Function to display the menu
 show_menu() {
+    # Define menu options
     declare -A menu_options=(
         [1]="Partition Disk"
         [2]="Install Base System"
@@ -452,19 +604,33 @@ show_menu() {
         [q]="Exit"
     )
 
-    dialog_options=()
-    sorted_keys=($(echo "${!menu_options[@]}" | tr ' ' '\n' | sort -n))
-    for key in "${sorted_keys[@]}"; do
-        if [[ $key == [[:digit:]] ]]; then
-            dialog_options+=("$key" "${menu_options[$key]}")
+    # Prepare dialog options array
+    dialog_options=() # Initialize array to hold dialog options
+    numeric_keys=()   # Initialize array to hold numeric keys
+
+    # Loop through menu options to find numeric keys
+    for key in "${!menu_options[@]}"; do
+        if [[ $key =~ ^[0-9]+$ ]]; then
+            numeric_keys+=("$key")  # Store numeric keys
         fi
     done
-    for key in "${sorted_keys[@]}"; do
-        if [[ $key == [[:alpha:]] ]]; then
+
+    # Sort numeric keys numerically
+    sorted_numeric_keys=($(printf '%s\n' "${numeric_keys[@]}" | sort -n))
+
+    # Add sorted numeric keys to dialog options array
+    for key in "${sorted_numeric_keys[@]}"; do
+        dialog_options+=("$key" "${menu_options[$key]}")
+    done
+
+    # Add remaining keys (non-numeric) to dialog options array
+    for key in "${!menu_options[@]}"; do
+        if [[ ! "${numeric_keys[@]}" =~ $key ]]; then
             dialog_options+=("$key" "${menu_options[$key]}")
         fi
     done
 
+    # Display menu using dialog
     dialog --backtitle "ArchTUI" --title "Main Menu" --menu "Choose an option:" 15 60 6 "${dialog_options[@]}" 2>&1 >/dev/tty
 }
 
