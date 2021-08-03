@@ -27,3 +27,13 @@ load ./arch_install.sh
     [ "$status" -eq 0 ]
     [ "$output" = *"ext4 partition created successfully"* ]
 }
+
+@test "Test Btrfs partition creation" {
+    # Mock the prompt_drive_selection function
+    prompt_drive_selection() {
+        echo "/dev/sdb"
+    }
+    run create_btrfs_partition
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Btrfs partition created successfully"* ]
+}
