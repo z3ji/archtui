@@ -37,3 +37,33 @@ load ./arch_install.sh
     [ "$status" -eq 0 ]
     [ "$output" = *"Btrfs partition created successfully"* ]
 }
+
+@test "Test base package installation for minimal installation" {
+    # Mock the prompt_desktop_environment function
+    prompt_desktop_environment() {
+        echo "minimal"
+    }
+    run install_base_packages
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Base packages for minimal installation installed successfully"* ]
+}
+
+@test "Test base package installation for gnome installation" {
+    # Mock the prompt_desktop_environment function
+    prompt_desktop_environment() {
+        echo "gnome"
+    }
+    run install_base_packages
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Base packages for gnome installation installed successfully"* ]
+}
+
+@test "Test base package installation for kde installation" {
+    # Mock the prompt_desktop_environment function
+    prompt_desktop_environment() {
+        echo "kde"
+    }
+    run install_base_packages
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Base packages for kde installation installed successfully"* ]
+}
