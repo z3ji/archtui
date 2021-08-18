@@ -18,6 +18,23 @@ load ./arch_install.sh
     [ "$output" = "1" ]
 }
 
+@test "Test GRUB configuration for UEFI system" {
+    # Mocking /sys/firmware/efi/efivars to simulate UEFI system
+    BATS_TMPDIR=$(mktemp -d)
+    mkdir -p "$BATS_TMPDIR/sys/firmware/efi/efivars"
+    run configure_grub
+    [ "$status" -eq 0 ]
+    [ "$output" = *"GRUB configured successfully for UEFI system"* ]
+}
+
+@test "Test GRUB configuration for BIOS system" {
+    # Mocking absence of /sys/firmware/efi/efivars to simulate BIOS system
+    BATS_TMPDIR=$(mktemp -d)
+    run configure_grub
+    [ "$status" -eq 0 ]
+    [ "$output" = *"GRUB configured successfully for BIOS system"* ]
+}
+
 @test "Test ext4 partition creation" {
     # Mock the prompt_drive_selection function
     prompt_drive_selection() {
