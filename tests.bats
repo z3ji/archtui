@@ -84,3 +84,9 @@ load ./arch_install.sh
     [ "$status" -eq 0 ]
     [ "$output" = *"Base packages for kde installation installed successfully"* ]
 }
+
+@test "Test NetworkManager service enablement" {
+    run enable_network_manager
+    [ "$status" -eq 0 ]
+    [ "$output" = *"NetworkManager service enabled successfully"* ]
+}
