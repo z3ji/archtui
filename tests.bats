@@ -90,3 +90,21 @@ load ./arch_install.sh
     [ "$status" -eq 0 ]
     [ "$output" = *"NetworkManager service enabled successfully"* ]
 }
+
+@test "Test hostname configuration" {
+    run configure_hostname "test-hostname"
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Hostname configured successfully"* ]
+}
+
+@test "Test root password setup" {
+    run set_root_password "newrootpassword"
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Root password set successfully"* ]
+}
+
+@test "Test new user creation" {
+    run create_new_user "testuser" "testpassword"
+    [ "$status" -eq 0 ]
+    [ "$output" = *"User 'testuser' created successfully"* ]
+}
