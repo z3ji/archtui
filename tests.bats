@@ -108,3 +108,13 @@ load ./arch_install.sh
     [ "$status" -eq 0 ]
     [ "$output" = *"User 'testuser' created successfully"* ]
 }
+
+@test "Test additional package installation" {
+    # Mock the prompt_additional_packages function
+    prompt_additional_packages() {
+        echo "vim git"
+    }
+    run install_additional_packages
+    [ "$status" -eq 0 ]
+    [ "$output" = *"Packages installed successfully"* ]
+}
