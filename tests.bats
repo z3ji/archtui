@@ -3,6 +3,16 @@
 # Load the script you want to test
 load ./arch_install.sh
 
+@test "Test error handling for invalid input in partition type selection" {
+    # Mock the select_partition_type function to return invalid input
+    select_partition_type() {
+        echo "InvalidInput"
+    }
+    run select_partition_type
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: Invalid input provided for partition type selection"* ]
+}
+
 @test "Test partition type selection for UEFI" {
     run select_partition_type
     [ "$status" -eq 0 ]
@@ -35,6 +45,16 @@ load ./arch_install.sh
     [ "$output" = *"GRUB configured successfully for BIOS system"* ]
 }
 
+@test "Test error handling for failure in GRUB configuration" {
+    # Mock the configure_grub function to simulate failure
+    configure_grub() {
+        return 1
+    }
+    run configure_grub
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: GRUB configuration failed"* ]
+}
+
 @test "Test ext4 partition creation" {
     # Mock the prompt_drive_selection function
     prompt_drive_selection() {
@@ -43,6 +63,16 @@ load ./arch_install.sh
     run create_ext4_partition
     [ "$status" -eq 0 ]
     [ "$output" = *"ext4 partition created successfully"* ]
+}
+
+@test "Test error handling for failure in ext4 partition creation" {
+    # Mock the create_ext4_partition function to simulate failure
+    create_ext4_partition() {
+        return 1
+    }
+    run create_ext4_partition
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: Ext4 partition creation failed"* ]
 }
 
 @test "Test Btrfs partition creation" {
