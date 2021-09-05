@@ -115,10 +115,30 @@ load ./arch_install.sh
     [ "$output" = *"Base packages for kde installation installed successfully"* ]
 }
 
+@test "Test error handling for invalid input in base package installation" {
+    # Mock the install_base_packages function to simulate failure due to invalid input
+    prompt_desktop_environment() {
+        echo "invalid"
+    }
+    run install_base_packages
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: Invalid input provided for desktop environment selection"* ]
+}
+
 @test "Test NetworkManager service enablement" {
     run enable_network_manager
     [ "$status" -eq 0 ]
     [ "$output" = *"NetworkManager service enabled successfully"* ]
+}
+
+@test "Test error handling for failure in NetworkManager service enablement" {
+    # Mock the enable_network_manager function to simulate failure
+    enable_network_manager() {
+        return 1
+    }
+    run enable_network_manager
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: NetworkManager service enablement failed"* ]
 }
 
 @test "Test hostname configuration" {
@@ -127,16 +147,42 @@ load ./arch_install.sh
     [ "$output" = *"Hostname configured successfully"* ]
 }
 
+@test "Test error handling for invalid hostname configuration" {
+    run configure_hostname ""
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: Hostname cannot be empty"* ]
+}
+
 @test "Test root password setup" {
     run set_root_password "newrootpassword"
     [ "$status" -eq 0 ]
     [ "$output" = *"Root password set successfully"* ]
 }
 
+@test "Test error handling for failure in root password setup" {
+    # Mock the set_root_password function to simulate failure
+    set_root_password() {
+        return 1
+    }
+    run set_root_password "newrootpassword"
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: Root password setup failed"* ]
+}
+
 @test "Test new user creation" {
     run create_new_user "testuser" "testpassword"
     [ "$status" -eq 0 ]
     [ "$output" = *"User 'testuser' created successfully"* ]
+}
+
+@test "Test error handling for failure in new user creation" {
+    # Mock the create_new_user function to simulate failure
+    create_new_user() {
+        return 1
+    }
+    run create_new_user "testuser" "testpassword"
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: User creation failed"* ]
 }
 
 @test "Test additional package installation" {
@@ -147,4 +193,14 @@ load ./arch_install.sh
     run install_additional_packages
     [ "$status" -eq 0 ]
     [ "$output" = *"Packages installed successfully"* ]
+}
+
+@test "Test error handling for invalid input in additional package installation" {
+    # Mock the install_additional_packages function to simulate failure due to invalid input
+    prompt_additional_packages() {
+        echo "invalid_package"
+    }
+    run install_additional_packages
+    [ "$status" -ne 0 ]
+    [ "$output" = *"Error: Invalid input provided for additional packages"* ]
 }
