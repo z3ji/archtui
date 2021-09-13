@@ -3,6 +3,12 @@
 # Load the script you want to test
 load ./arch_install.sh
 
+# Function to reset environment for each test
+setup() {
+    # Reset any environment variables or state modifications here
+    unset BATS_TMPDIR
+}
+
 # Test error handling for invalid input in partition type selection
 @test "Test error handling for invalid input in partition type selection" {
     # Mock the select_partition_type function to return invalid input
